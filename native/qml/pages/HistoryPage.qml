@@ -32,12 +32,18 @@ ColumnLayout {
         model: History.historyModel
         spacing: Theme.spacingSmall
 
-        delegate: CachyCard {
+        delegate: Rectangle {
             width: ListView.view.width
-            padding: Theme.spacingSmall
+            radius: Theme.radius
+            color: Theme.surface
+            implicitHeight: row.implicitHeight + Theme.spacingSmall * 2
+
             RowLayout {
-                Layout.fillWidth: true
+                id: row
+                anchors.fill: parent
+                anchors.margins: Theme.spacingSmall
                 spacing: Theme.spacingSmall
+
                 Rectangle {
                     width: 8; height: 8; radius: 4
                     color: model.success ? Theme.ok : Theme.errorText
