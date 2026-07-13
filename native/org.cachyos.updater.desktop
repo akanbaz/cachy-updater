@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=CachyOS Updater
+Name=Cachy Updater
 GenericName=System Updater
 Comment=Fast, native system updater for CachyOS
 Exec=cachyos-updater

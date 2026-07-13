@@ -1,4 +1,4 @@
-# CachyOS Updater
+# Cachy Updater
 
 A fast, native **C++ / Kirigami** system updater for CachyOS — lightweight,
 single-binary, and styled to the CachyOS design language.
@@ -7,27 +7,39 @@ single-binary, and styled to the CachyOS design language.
 
 ## Features
 
-- Native **Kirigami / Qt Quick** UI (no Python, no web stack)
+- Native **Kirigami / Qt Quick** UI
 - Grouped **Repo** (`checkupdates` / `pacman`), **AUR** (`paru`), and **Flatpak** updates
 - **Kernel updates** pulled out distinctly with a reboot hint
 - Per-package **severity badges** and expandable **change summaries**
-- Exact commands shown, with a collapsible **Terminal** panel (real-time output, Copy Log)
+- Exact commands shown, with a collapsible **Terminal** panel (real-time output, copy log)
 - **Apply / Dry Run / Download Only**, full `pacman -Syu` with a partial-upgrade guard (`--ignore`)
-- **News** tab (Arch RSS + best-effort CachyOS feeds via `QNetworkAccessManager` — no curl)
+- **News** tab (Arch RSS + best-effort CachyOS feeds via `QNetworkAccessManager`)
 - **Cleanup** tab: orphan removal (`pacman -Rns`) and cache cleanup (`paccache`)
-- Background **system tray** applet (`cachyos-updater --tray`) with periodic checks and notifications
-- Polkit (`pkexec`) for privileged actions
+- Background **system tray** applet (`cachyos-updater --tray`) with colored status icons
+- Polkit (`pkexec`) for privileged operations
 
 ## Runtime dependencies
 
-Present on a stock CachyOS Plasma install:
+Required on a stock CachyOS Plasma install:
 
-```
-qt6-base qt6-declarative kirigami qqc2-desktop-style breeze-icons pacman polkit
-```
+| Package | Purpose |
+|---------|---------|
+| `qt6-base` | Qt6 core, GUI, widgets |
+| `qt6-declarative` | QML / Qt Quick |
+| `kirigami` | KDE Kirigami UI framework |
+| `qqc2-desktop-style` | Native Plasma widget styling |
+| `breeze-icons` | System icons |
+| `pacman` | Repo package management |
+| `polkit` | Privileged actions via `pkexec` |
 
-Optional (auto-detected): `paru` (AUR), `pacman-contrib` (`checkupdates`/`paccache`),
-`expac` (fast metadata), `flatpak`.
+Optional (auto-detected):
+
+| Package | Purpose |
+|---------|---------|
+| `paru` | AUR updates |
+| `pacman-contrib` | `checkupdates` and `paccache` |
+| `expac` | Fast package metadata |
+| `flatpak` | Flatpak updates |
 
 ## Build
 
@@ -38,28 +50,50 @@ cmake --build build
 ./build/cachyos-updater
 ```
 
-Build requirements: `cmake`, `ninja`, `qt6-base`, `qt6-declarative`, a C++20 compiler.
+Build requirements: `cmake`, `ninja`, `qt6-base`, `qt6-declarative`, C++20 compiler.
 
-## Install / package
+## Install
 
 ```bash
-cd native && cmake --install build            # or via the PKGBUILD:
-cd packaging && makepkg -si                    # after adjusting source=
+cd native
+cmake --install build
+systemctl --user enable --now org.cachyos.updater-tray.service
 ```
 
-Everything (QML, icons, assets) is embedded in the single ELF via the Qt
-Resource System; only the shared Qt6/Kirigami libraries already on the system
-are linked at runtime. No bundled frameworks, no runtime downloads, no daemon.
+Or via the Arch package:
+
+```bash
+cd packaging && makepkg -si
+```
+
+The package install script disables the legacy `arch-update-tray` service and
+enables `org.cachyos.updater-tray.service`.
+
+QML, tray icons, and UI assets are embedded in the single ELF via the Qt
+Resource System. Runtime links only against system Qt6/Kirigami libraries.
 
 ## Architecture
 
 Thin QML/Kirigami views bind to C++ `QObject` controllers and a
 `QAbstractListModel`. All external work runs through one async `ProcessRunner`
-(`QProcess`) — the UI never blocks and there are no worker threads.
+(`QProcess`) — the UI never blocks.
 
 ```
 native/
   src/    ProcessRunner, UpdateController, UpdatesModel, Classifier,
-          NewsController, MaintainController, main.cpp
+          NewsController, MaintainController, TrayController, main.cpp
   qml/    Main.qml, Theme.qml, pages/, components/
+  assets/ logo.svg, tray-uptodate.svg, tray-updates.svg
+packaging/
+  PKGBUILD, cachyos-updater.install
+```
+
+## Project layout
+
+```
+cachy-updater/
+├── LICENSE
+├── README.md
+├── native/           # C++/QML application
+└── packaging/        # Arch Linux PKGBUILD
 ```

@@ -90,7 +90,6 @@ private:
     void finalizeCheck();
     void parsePacmanStyle(const QString &out, cachy::Source source);
     void parseFlatpak(const QString &out);
-    void loadDemo();
 
     // Apply pipeline.
     void beginRun(Mode mode);

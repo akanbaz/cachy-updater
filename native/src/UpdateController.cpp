@@ -133,12 +133,6 @@ void UpdateController::check()
     if (m_busy)
         return;
 
-    // Dev-only: CACHYOS_DEMO=1 seeds sample data for visual verification.
-    if (qEnvironmentVariableIsSet("CACHYOS_DEMO")) {
-        loadDemo();
-        return;
-    }
-
     setBusy(true);
     setStatus(QStringLiteral("Checking for updates\u2026"), QStringLiteral("checking"));
     m_collect.clear();
@@ -322,41 +316,6 @@ void UpdateController::finalizeCheck()
     emit updatesChanged();
     emit selectionChanged();
     emit checkFinished();
-}
-
-void UpdateController::loadDemo()
-{
-    m_collect.clear();
-    auto add = [this](const QString &n, const QString &o, const QString &nv,
-                      Source s, const QString &repo, qint64 sz,
-                      const QString &desc) {
-        Pkg p;
-        p.name = n; p.oldVersion = o; p.newVersion = nv; p.source = s;
-        p.repo = repo; p.sizeBytes = sz; p.description = desc;
-        m_collect.push_back(p);
-    };
-    add("linux-cachyos", "6.15.4-1", "6.16.1-1", Source::Repo, "cachyos", 138000000,
-        "The Linux kernel and modules (CachyOS BORE + LTO).");
-    add("nvidia-utils", "570.133.07-1", "575.64.03-1", Source::Repo, "extra", 96000000,
-        "NVIDIA drivers utilities.");
-    add("systemd", "257.5-1", "257.6-1", Source::Repo, "core", 14200000,
-        "System and service manager.");
-    add("mesa", "25.1.3-1", "25.1.5-1", Source::Repo, "extra", 31000000,
-        "Open-source OpenGL/Vulkan drivers.");
-    add("ripgrep", "14.1.0-1", "14.1.1-1", Source::Repo, "extra", 2600000,
-        "A search tool that recursively searches directories.");
-    add("plasma-desktop", "6.4.1-1", "6.4.2-1", Source::Repo, "extra", 12800000,
-        "KDE Plasma desktop.");
-    add("visual-studio-code-bin", "1.101.1-1", "1.101.2-1", Source::Aur, "aur", 0,
-        "Code editing, redefined (Microsoft binary).");
-    add("brave-bin", "1.79.119-1", "1.80.115-1", Source::Aur, "aur", 0,
-        "Web browser that blocks ads and trackers by default.");
-    add("org.mozilla.firefox", "", "141.0", Source::Flatpak, "flatpak", 92000000,
-        "Mozilla Firefox web browser.");
-
-    m_warnings.clear();
-    m_warnings << QStringLiteral("Sample data (CACHYOS_DEMO) \u2014 not a real check.");
-    finalizeCheck();
 }
 
 // ---------------------------------------------------------------------------

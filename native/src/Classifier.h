@@ -3,7 +3,6 @@
 #include "Pkg.h"
 
 // Severity classification and change-summary building.
-// Ported from the Python reference (cachy_updater/backend/summaries.py).
 namespace cachy::classifier {
 
 bool isKernel(const QString &name, Source source);

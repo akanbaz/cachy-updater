@@ -3,7 +3,7 @@
  "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
-  <vendor>CachyOS Updater</vendor>
+  <vendor>Cachy Updater</vendor>
   <vendor_url>https://cachyos.org</vendor_url>
 
   <!--

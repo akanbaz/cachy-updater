@@ -1,8 +1,8 @@
 # Maintainer: akanbaz
 pkgname=cachyos-updater
-pkgver=0.3.0
+pkgver=1.0.0
 pkgrel=1
-pkgdesc="Fast, native Kirigami system updater for CachyOS (updates, news, cleanup)"
+pkgdesc="Fast, native Kirigami system updater for CachyOS (updates, news, cleanup, tray)"
 arch=('x86_64')
 url="https://github.com/akanbaz/cachy-updater"
 license=('GPL-3.0-or-later')
@@ -26,7 +26,6 @@ optdepends=(
   'pacman-contrib: repo update checks (checkupdates) and cache cleanup (paccache)'
   'expac: fast package metadata (sizes, groups, descriptions)'
   'flatpak: Flatpak application updates'
-  'reflector: mirror ranking (future mirror-health card)'
 )
 conflicts=('cachy-updater')
 replaces=('cachy-updater')

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(cachyos-updater
-    VERSION 0.1.0
+    VERSION 1.0.0
     DESCRIPTION "Fast, native CachyOS system updater"
     LANGUAGES CXX)
 
@@ -53,10 +53,6 @@ qt_add_qml_module(cachyos-updater
         qml/components/PackageDelegate.qml
         qml/components/KernelCard.qml
         qml/components/TerminalPanel.qml
-    RESOURCES
-        assets/logo.svg
-        assets/tray-uptodate.svg
-        assets/tray-updates.svg
 )
 
 qt_add_resources(cachyos-updater tray_icons
@@ -91,7 +87,7 @@ install(FILES org.cachyos.updater-tray.desktop
 install(FILES org.cachyos.updater-tray.service
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/systemd/user)
 
-# The header logo doubles as the app icon.
+# App launcher icon (installed to the system icon theme).
 install(FILES assets/logo.svg
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps
     RENAME org.cachyos.updater.svg)

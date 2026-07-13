@@ -9,15 +9,9 @@ dist/
 .venv/
 venv/
 
-# Dev-only screenshots produced by CACHYOS_SHOT
-native/*.png
-
-# Python leftovers (legacy)
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
+# Dev reference renders (never commit)
+.refimg/
+.refimg2/
 
 *.lock
 .DS_Store

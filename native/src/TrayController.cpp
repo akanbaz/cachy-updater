@@ -24,7 +24,7 @@ QIcon loadTrayIcon(const QString &resourceName, const QString &themeName)
     if (!themed.isNull())
         return themed;
 
-    // Last resort: legacy CachyOS tray icons if still installed.
+    // Fallback to system theme icons when bundled assets are unavailable.
     if (resourceName == QLatin1String("tray-updates.svg"))
         return QIcon::fromTheme(QStringLiteral("cachy-update_updates-available-blue"));
     return QIcon::fromTheme(QStringLiteral("cachy-update-blue"));
