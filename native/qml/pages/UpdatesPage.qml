@@ -6,7 +6,8 @@ import org.cachyos.updater
 import "../components"
 
 ColumnLayout {
-    spacing: Theme.spacing
+    id: updatesRoot
+    spacing: Theme.spacingSmall
 
     Banner { text: Updater.warningText }
 
@@ -55,7 +56,6 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        Layout.minimumHeight: 32
         spacing: Theme.spacingSmall
 
         QQC2.Label {
@@ -85,7 +85,11 @@ ColumnLayout {
     ListView {
         id: list
         Layout.fillWidth: true
-        Layout.fillHeight: true
+        readonly property int listCap: 420
+        Layout.preferredHeight: Updater.packageCount === 0
+            ? (Updater.busy ? 0 : 140)
+            : Math.min(contentHeight, listCap)
+        Layout.maximumHeight: Layout.preferredHeight
         clip: true
         spacing: 0
         model: Updater.updatesModel
@@ -98,8 +102,10 @@ ColumnLayout {
         delegate: PackageDelegate {}
 
         Kirigami.PlaceholderMessage {
-            anchors.centerIn: parent
-            width: parent.width - Theme.spacingLarge * 4
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: Theme.spacingLarge * 2
+            width: parent.width - Theme.spacingLarge * 2
             visible: Updater.packageCount === 0 && !Updater.busy
             icon.name: Updater.statusState === "uptodate" ? "checkmark" : "system-software-update"
             text: Updater.statusState === "uptodate" ? "System is up to date" : "No updates yet"

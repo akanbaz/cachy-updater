@@ -13,7 +13,7 @@ Item {
     property bool expanded: false
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    implicitHeight: col.implicitHeight + Theme.spacingSmall
+    implicitHeight: col.implicitHeight + 4
 
     function badgeBg() {
         if (model.severity >= 3) return Theme.warnBg

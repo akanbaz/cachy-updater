@@ -8,7 +8,7 @@ Item {
     required property string section
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    implicitHeight: row.implicitHeight + Theme.spacingLarge
+    implicitHeight: row.implicitHeight + Theme.spacingSmall
 
     function labelText() {
         if (section === "aur") return "AUR"

@@ -8,7 +8,7 @@ CachyCard {
     id: bar
     Layout.fillWidth: true
     visible: Updater.showKernelInfo
-    padding: Theme.spacing
+    padding: Theme.spacingSmall
 
     RowLayout {
         Layout.fillWidth: true
