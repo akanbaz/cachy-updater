@@ -9,7 +9,7 @@ import "components"
 Kirigami.ApplicationWindow {
     id: root
 
-    title: "CachyOS Updater"
+    title: "Cachy Updater"
     width: 1024
     height: 760
     minimumWidth: 900
@@ -57,57 +57,62 @@ Kirigami.ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true
                 color: Theme.bg
-                implicitHeight: headerRow.implicitHeight + Theme.spacingLarge * 1.5
+                implicitHeight: headerCol.implicitHeight + Theme.spacingLarge * 1.5
 
-                RowLayout {
-                    id: headerRow
+                ColumnLayout {
+                    id: headerCol
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: Theme.spacingLarge
                     anchors.rightMargin: Theme.spacingLarge
-                    spacing: Theme.spacing
+                    spacing: 2
 
-                    ColumnLayout {
+                    // Title line + status readout (centered on the title).
+                    RowLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: Theme.spacingSmall
+
                         QQC2.Label {
+                            Layout.fillWidth: true
                             text: root.tabs[root.currentTab].name
                             color: Theme.text
                             font.family: Theme.sansFamily
                             font.pixelSize: 26
                             font.weight: Font.Bold
                         }
+
+                        Rectangle {
+                            visible: root.currentTab === 0
+                            implicitWidth: 8; implicitHeight: 8; radius: 4
+                            color: root.statusColor()
+                            opacity: Updater.busy ? 0.5 : 1.0
+                            Layout.alignment: Qt.AlignVCenter
+                        }
                         QQC2.Label {
-                            text: root.tabs[root.currentTab].subtitle
-                            color: Theme.textMuted
+                            visible: root.currentTab === 0
+                            text: Updater.statusText
+                            color: Theme.cyan
                             font.family: Theme.sansFamily
                             font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                        QQC2.BusyIndicator {
+                            visible: Updater.busy
+                            running: Updater.busy
+                            implicitWidth: 18
+                            implicitHeight: 18
+                            Layout.alignment: Qt.AlignVCenter
                         }
                     }
 
-                    Rectangle {
-                        visible: root.currentTab === 0
-                        width: 8; height: 8; radius: 4
-                        color: root.statusColor()
-                        opacity: Updater.busy ? 0.5 : 1.0
-                        Layout.alignment: Qt.AlignVCenter
-                    }
                     QQC2.Label {
-                        visible: root.currentTab === 0
-                        text: Updater.statusText
-                        color: Theme.cyan
+                        Layout.fillWidth: true
+                        text: root.tabs[root.currentTab].subtitle
+                        color: Theme.textMuted
                         font.family: Theme.sansFamily
                         font.pixelSize: 13
-                        font.weight: Font.DemiBold
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-                    QQC2.BusyIndicator {
-                        visible: Updater.busy
-                        running: Updater.busy
-                        implicitWidth: 18
-                        implicitHeight: 18
-                        Layout.alignment: Qt.AlignVCenter
                     }
                 }
             }
@@ -193,106 +198,132 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            // ---- Content -----------------------------------------------
-            StackLayout {
+            // ---- Content + bottom chrome --------------------------------
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.margins: Theme.spacingLarge
-                currentIndex: root.currentTab
 
-                UpdatesPage {}
-                NewsPage {}
-                CleanupPage {}
-            }
+                StackLayout {
+                    id: pageStack
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingLarge
+                    anchors.bottomMargin: bottomChrome.height + Theme.spacingLarge
+                    currentIndex: root.currentTab
 
-            // ---- Footer actions (Updates only) -------------------------
-            Rectangle {
-                Layout.fillWidth: true
-                visible: root.currentTab === 0
-                color: Theme.deepBg
-                implicitHeight: footerRow.implicitHeight + Theme.spacing
+                    UpdatesPage {}
+                    NewsPage {}
+                    CleanupPage {}
+                }
 
-                RowLayout {
-                    id: footerRow
+                // Terminal + footer pinned to the bottom; terminal expands upward.
+                ColumnLayout {
+                    id: bottomChrome
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: Theme.spacingLarge
-                    anchors.rightMargin: Theme.spacingLarge
-                    spacing: Theme.spacingSmall
+                    anchors.bottom: parent.bottom
+                    visible: root.currentTab === 0
+                    spacing: 0
+                    width: parent.width
 
-                    QQC2.Button {
-                        text: "Refresh"
-                        icon.name: "view-refresh"
-                        enabled: !Updater.busy
-                        onClicked: Updater.check()
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
+
+                    TerminalPanel {
+                        id: terminal
+                        controller: Updater
+                        radius: 0
+                        edgeMargin: Theme.spacingLarge
                     }
 
-                    QQC2.Label {
-                        text: "v" + AppVersion
-                              + (Updater.lastChecked.length > 0
-                                 ? "   \u00b7   last checked " + Updater.lastChecked : "")
-                        color: Theme.textFaint
-                        font.family: Theme.monoFamily
-                        font.pixelSize: 12
-                    }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
 
-                    Item { Layout.fillWidth: true }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        color: Theme.deepBg
+                        implicitHeight: footerRow.implicitHeight + Theme.spacing
 
-                    QQC2.Label {
-                        text: Updater.selectedCount + " selected"
-                        color: Theme.textMuted
-                        font.family: Theme.sansFamily
-                        font.pixelSize: 12
-                    }
+                        RowLayout {
+                            id: footerRow
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: Theme.spacingLarge
+                            anchors.rightMargin: Theme.spacingLarge
+                            spacing: Theme.spacingSmall
 
-                    QQC2.ToolButton {
-                        icon.name: "overflow-menu"
-                        flat: true
-                        enabled: !Updater.busy && Updater.selectedCount > 0
-                        onClicked: moreMenu.open()
-                        QQC2.Menu {
-                            id: moreMenu
-                            y: -height
-                            QQC2.MenuItem {
-                                text: "Dry Run"
-                                icon.name: "system-run"
-                                onTriggered: Updater.dryRun()
+                            QQC2.Button {
+                                text: "Refresh"
+                                icon.name: "view-refresh"
+                                enabled: !Updater.busy
+                                onClicked: Updater.check()
                             }
-                            QQC2.MenuItem {
-                                text: "Download Only"
-                                icon.name: "download"
-                                onTriggered: Updater.downloadOnly()
+
+                            QQC2.Label {
+                                text: "v" + AppVersion
+                                      + (Updater.lastChecked.length > 0
+                                         ? "   \u00b7   last checked " + Updater.lastChecked : "")
+                                color: Theme.textFaint
+                                font.family: Theme.monoFamily
+                                font.pixelSize: 12
                             }
-                        }
-                    }
 
-                    QQC2.Button {
-                        id: applyButton
-                        text: "Apply " + Updater.selectedCount + " update" + (Updater.selectedCount === 1 ? "" : "s")
-                        enabled: !Updater.busy && Updater.selectedCount > 0
-                        onClicked: confirmDialog.open()
+                            Item { Layout.fillWidth: true }
 
-                        contentItem: QQC2.Label {
-                            id: applyLabel
-                            text: applyButton.text
-                            color: applyButton.enabled ? Theme.cyanInk : Theme.textFaint
-                            font.family: Theme.sansFamily
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            leftPadding: Theme.spacing
-                            rightPadding: Theme.spacing
-                        }
-                        background: Rectangle {
-                            radius: Theme.radiusSmall
-                            implicitHeight: 32
-                            implicitWidth: Math.max(130, applyLabel.implicitWidth)
-                            color: !applyButton.enabled ? Theme.surfaceHover
-                                 : applyButton.pressed ? Theme.cyanPressed
-                                 : applyButton.hovered ? Theme.cyanHover
-                                 : Theme.cyan
+                            QQC2.Label {
+                                text: Updater.selectedCount + " selected"
+                                color: Theme.textMuted
+                                font.family: Theme.sansFamily
+                                font.pixelSize: 12
+                            }
+
+                            QQC2.ToolButton {
+                                icon.name: "overflow-menu"
+                                flat: true
+                                enabled: !Updater.busy && Updater.selectedCount > 0
+                                onClicked: moreMenu.open()
+                                QQC2.Menu {
+                                    id: moreMenu
+                                    y: -height
+                                    QQC2.MenuItem {
+                                        text: "Dry Run"
+                                        icon.name: "system-run"
+                                        onTriggered: Updater.dryRun()
+                                    }
+                                    QQC2.MenuItem {
+                                        text: "Download Only"
+                                        icon.name: "download"
+                                        onTriggered: Updater.downloadOnly()
+                                    }
+                                }
+                            }
+
+                            QQC2.Button {
+                                id: applyButton
+                                text: "Apply " + Updater.selectedCount + " update" + (Updater.selectedCount === 1 ? "" : "s")
+                                enabled: !Updater.busy && Updater.selectedCount > 0
+                                onClicked: confirmDialog.open()
+
+                                contentItem: QQC2.Label {
+                                    id: applyLabel
+                                    text: applyButton.text
+                                    color: applyButton.enabled ? Theme.cyanInk : Theme.textFaint
+                                    font.family: Theme.sansFamily
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    leftPadding: Theme.spacing
+                                    rightPadding: Theme.spacing
+                                }
+                                background: Rectangle {
+                                    radius: Theme.radiusSmall
+                                    implicitHeight: 32
+                                    implicitWidth: Math.max(130, applyLabel.implicitWidth)
+                                    color: !applyButton.enabled ? Theme.surfaceHover
+                                         : applyButton.pressed ? Theme.cyanPressed
+                                         : applyButton.hovered ? Theme.cyanHover
+                                         : Theme.cyan
+                                }
+                            }
                         }
                     }
                 }

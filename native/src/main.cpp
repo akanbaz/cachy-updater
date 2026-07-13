@@ -12,7 +12,6 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("cachyos-updater"));
-    app.setApplicationDisplayName(QStringLiteral("Cachy Updater"));
     app.setApplicationVersion(QStringLiteral("1.0.0"));
     app.setOrganizationName(QStringLiteral("CachyOS"));
     app.setDesktopFileName(QStringLiteral("org.cachyos.updater"));

@@ -68,8 +68,4 @@ ColumnLayout {
                 : "Press Refresh to check for package updates."
         }
     }
-
-    TerminalPanel {
-        id: terminal
-    }
 }

@@ -10,9 +10,13 @@ Rectangle {
 
     property bool expanded: false
     property var controller: Updater
+    property int edgeMargin: Theme.spacingSmall
+    readonly property int barHeight: bar.implicitHeight + Theme.spacingSmall * 2
+    readonly property int expandedHeight: Math.min(220, Math.max(120, expanded ? 220 : barHeight))
 
     Layout.fillWidth: true
-    Layout.preferredHeight: expanded ? 240 : (bar.implicitHeight + Theme.spacingSmall * 2)
+    Layout.preferredHeight: expanded ? expandedHeight : barHeight
+    Layout.maximumHeight: expanded ? expandedHeight : barHeight
     Behavior on Layout.preferredHeight { NumberAnimation { duration: 0 } }
     color: Theme.deepBg
     radius: Theme.radius
@@ -44,7 +48,10 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.spacingSmall
+        anchors.leftMargin: term.edgeMargin
+        anchors.rightMargin: term.edgeMargin
+        anchors.topMargin: Theme.spacingSmall
+        anchors.bottomMargin: Theme.spacingSmall
         spacing: Theme.spacingSmall
 
         RowLayout {
@@ -78,7 +85,7 @@ Rectangle {
         QQC2.ScrollView {
             visible: term.expanded
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.preferredHeight: Math.max(0, term.expandedHeight - term.barHeight)
             clip: true
 
             QQC2.TextArea {
