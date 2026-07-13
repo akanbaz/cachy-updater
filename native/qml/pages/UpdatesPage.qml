@@ -61,14 +61,6 @@ ColumnLayout {
                   + "   \u00b7   " + Updater.downloadText + " download"
                   + "   \u00b7   " + Updater.sourceCount
                   + (Updater.sourceCount === 1 ? " source" : " sources")
-                  + (Updater.mirrorStatus.length > 0 ? "   \u00b7   mirrors: " + Updater.mirrorStatus : "")
-        }
-
-        QQC2.Button {
-            text: "Mirror check"
-            icon.name: "network-wireless"
-            enabled: !Updater.busy
-            onClicked: Updater.checkMirrorHealth()
         }
 
         QQC2.CheckBox {

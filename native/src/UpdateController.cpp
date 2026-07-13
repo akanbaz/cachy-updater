@@ -453,33 +453,6 @@ void UpdateController::seedFromCache()
     emit checkFinished();
 }
 
-void UpdateController::checkMirrorHealth()
-{
-    if (which(QStringLiteral("checkupdates")).isEmpty()) {
-        m_mirrorStatus = QStringLiteral("checkupdates unavailable");
-        emit mirrorChanged();
-        return;
-    }
-    emitLine(QStringLiteral("$ checkupdates (mirror probe)"), QStringLiteral("cmd"));
-    runStep(QStringLiteral("checkupdates"), {}, QProcessEnvironment(),
-            [this](int code, const QString &out) {
-                if (code < 0) {
-                    m_mirrorStatus = QStringLiteral("Sync failed");
-                    m_warnings << QStringLiteral("Could not reach package mirrors.");
-                } else if (out.contains(QLatin1String("failed to synchronize"),
-                                        Qt::CaseInsensitive)
-                           || out.contains(QLatin1String("error"),
-                                            Qt::CaseInsensitive)) {
-                    m_mirrorStatus = QStringLiteral("Mirror error");
-                    m_warnings << QStringLiteral("Mirror synchronization issue detected.");
-                } else {
-                    m_mirrorStatus = QStringLiteral("Mirrors OK");
-                }
-                emit mirrorChanged();
-                emit updatesChanged();
-            });
-}
-
 // ---------------------------------------------------------------------------
 // Check pipeline
 // ---------------------------------------------------------------------------
@@ -524,10 +497,19 @@ void UpdateController::check()
     emitLine(QStringLiteral("$ checkupdates"), QStringLiteral("cmd"));
     runStep(QStringLiteral("checkupdates"), {}, env,
             [this](int code, const QString &out) {
-                if (code == 0)
+                if (code == 0) {
                     parsePacmanStyle(out, Source::Repo);
-                else if (code > 2)
-                    m_mirrorStatus = QStringLiteral("Sync issue");
+                } else {
+                    if (code < 0 || code > 2
+                        || out.contains(QLatin1String("failed to synchronize"),
+                                        Qt::CaseInsensitive)) {
+                        m_warnings << QStringLiteral(
+                            "Could not reach package mirrors — try again later or pick another mirror.");
+                    } else {
+                        m_warnings << QStringLiteral(
+                            "Repository check failed — see terminal output for details.");
+                    }
+                }
                 checkAur();
             });
 }

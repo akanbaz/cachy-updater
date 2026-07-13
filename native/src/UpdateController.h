@@ -32,7 +32,6 @@ class UpdateController : public QObject
     Q_PROPERTY(bool nvidiaKernelWarning READ nvidiaKernelWarning NOTIFY safetyChanged)
     Q_PROPERTY(bool archNewsBlocked READ archNewsBlocked NOTIFY safetyChanged)
     Q_PROPERTY(QString archGateText READ archGateText NOTIFY safetyChanged)
-    Q_PROPERTY(QString mirrorStatus READ mirrorStatus NOTIFY mirrorChanged)
     Q_PROPERTY(QString runningKernel READ runningKernel NOTIFY kernelInfoChanged)
     Q_PROPERTY(QStringList installedKernels READ installedKernels NOTIFY kernelInfoChanged)
     Q_PROPERTY(QString kernelHeadline READ kernelHeadline NOTIFY kernelInfoChanged)
@@ -68,7 +67,6 @@ public:
     bool nvidiaKernelWarning() const { return m_nvidiaKernelWarning; }
     bool archNewsBlocked() const { return m_archNewsBlocked; }
     QString archGateText() const { return m_archGateText; }
-    QString mirrorStatus() const { return m_mirrorStatus; }
     QString runningKernel() const { return m_runningKernel; }
     QStringList installedKernels() const { return m_installedKernels; }
     QString kernelHeadline() const { return m_kernelHeadline; }
@@ -97,7 +95,6 @@ public:
     Q_INVOKABLE void clearFilters();
     Q_INVOKABLE void holdPackage(const QString &name);
     Q_INVOKABLE void unholdPackage(const QString &name);
-    Q_INVOKABLE void checkMirrorHealth();
     Q_INVOKABLE void acknowledgeArchNews();
     Q_INVOKABLE void reboot();
     Q_INVOKABLE void refreshKernelInfo();
@@ -122,7 +119,6 @@ signals:
     void checkFinished();
     void applyFinished(bool ok);
     void safetyChanged();
-    void mirrorChanged();
     void kernelInfoChanged();
     void filtersChanged();
     void notifyRequested(const QString &title, const QString &body);
@@ -176,7 +172,6 @@ private:
     QStringList m_warnings;
     QString m_checkDbPath;
     QString m_lastChecked;
-    QString m_mirrorStatus = QStringLiteral("Unknown");
     QString m_runningKernel;
     QStringList m_installedKernels;
     QString m_kernelHeadline;
