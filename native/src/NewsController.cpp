@@ -137,15 +137,19 @@ void NewsController::fetchNext()
 void NewsController::handleReply(QNetworkReply *reply, const QString &source)
 {
     const FeedJob job = m_jobs.at(m_jobIndex);
+    const auto netError = reply->error();
+    const QString netErrorString = reply->errorString();
+
+    // Drain the body on every path so Qt can close the SSL socket cleanly.
+    const QByteArray data = reply->readAll();
     reply->deleteLater();
 
-    if (reply->error() != QNetworkReply::NoError) {
+    if (netError != QNetworkReply::NoError) {
         // Individual failures inside a fallback group are summarized later.
         if (!job.stopGroupOnSuccess)
             m_warnings << QStringLiteral("Could not fetch %1 news: %2")
-                              .arg(source, reply->errorString());
+                              .arg(source, netErrorString);
     } else {
-        const QByteArray data = reply->readAll();
         QString err;
         const QVector<NewsItem> items = parseFeed(data, source, job.limit, &err);
         if (!items.isEmpty()) {
