@@ -63,7 +63,12 @@ Kirigami.ApplicationWindow {
 
     Shortcut { sequence: "R"; onActivated: if (!Updater.busy) Updater.check() }
     Shortcut { sequence: "Ctrl+A"; onActivated: Updater.setAllSelected(true) }
-    Shortcut { sequence: "Ctrl+Return"; onActivated: if (!Updater.busy && Updater.selectedCount > 0) confirmDialog.open() }
+    Shortcut { sequence: "Ctrl+Return"; onActivated: {
+        if (!Updater.busy && Updater.selectedCount > 0) {
+            confirmDialog.plannedCmds = Updater.plannedCommands()
+            confirmDialog.open()
+        }
+    } }
     Shortcut { sequence: "Escape"; onActivated: Updater.cancel() }
 
     pageStack.initialPage: Kirigami.Page {
@@ -329,7 +334,10 @@ Kirigami.ApplicationWindow {
                                 id: applyButton
                                 text: "Apply " + Updater.selectedCount + " update" + (Updater.selectedCount === 1 ? "" : "s")
                                 enabled: !Updater.busy && Updater.selectedCount > 0 && !Updater.archNewsBlocked
-                                onClicked: confirmDialog.open()
+                                onClicked: {
+                                    confirmDialog.plannedCmds = Updater.plannedCommands()
+                                    confirmDialog.open()
+                                }
 
                                 contentItem: QQC2.Label {
                                     text: applyButton.text
@@ -359,7 +367,12 @@ Kirigami.ApplicationWindow {
     Kirigami.PromptDialog {
         id: confirmDialog
         title: "Apply updates?"
+        preferredWidth: Kirigami.Units.gridUnit * 30
         standardButtons: Kirigami.Dialog.NoButton
+        property string plannedCmds: ""
+
+        onOpened: plannedCmds = Updater.plannedCommands()
+
         customFooterActions: [
             Kirigami.Action { text: "Cancel"; onTriggered: confirmDialog.close() },
             Kirigami.Action {
@@ -369,25 +382,39 @@ Kirigami.ApplicationWindow {
         ]
 
         ColumnLayout {
+            width: parent ? parent.width : implicitWidth
             spacing: Theme.spacingSmall
-            QQC2.Label { text: "The following commands will run:"; color: Theme.textDim }
-            Rectangle {
+
+            QQC2.Label {
                 Layout.fillWidth: true
-                color: Theme.deepBg
-                radius: Theme.radiusSmall
-                implicitHeight: cmds.implicitHeight + Theme.spacing
-                QQC2.Label {
-                    id: cmds
-                    anchors.fill: parent
-                    anchors.margins: Theme.spacingSmall
-                    text: Updater.plannedCommands()
-                    color: Theme.cyan
-                    font.family: Theme.monoFamily
-                    font.pixelSize: 12
-                    wrapMode: Text.WrapAnywhere
+                text: "The following commands will run:"
+                color: Theme.textDim
+                font.family: Theme.sansFamily
+            }
+
+            QQC2.TextArea {
+                id: cmdPreview
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.max(56, Math.min(180, contentHeight + Theme.spacing))
+                readOnly: true
+                text: confirmDialog.plannedCmds.length > 0
+                      ? confirmDialog.plannedCmds
+                      : "No commands could be built for the current selection."
+                color: Theme.cyan
+                font.family: Theme.monoFamily
+                font.pixelSize: 12
+                wrapMode: TextArea.Wrap
+                selectByMouse: true
+                background: Rectangle {
+                    color: Theme.deepBg
+                    radius: Theme.radiusSmall
+                    border.width: 1
+                    border.color: Theme.border
                 }
             }
+
             Banner {
+                Layout.fillWidth: true
                 visible: Updater.rebootRequired
                 text: "A reboot will be required afterward."
                 severity: "info"

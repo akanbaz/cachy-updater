@@ -227,11 +227,39 @@ void UpdateController::refreshKernelInfo()
                     QStringView(out).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
                 for (const QStringView &l : lines) {
                     const QString name = l.trimmed().toString();
-                    if (name.startsWith(QLatin1String("linux")))
+                    if (classifier::isBootableKernelPackage(name))
                         m_installedKernels << name;
                 }
+                updateKernelCopy();
                 emit kernelInfoChanged();
             });
+}
+
+void UpdateController::updateKernelCopy()
+{
+    if (m_runningKernel.isEmpty()) {
+        m_kernelHeadline.clear();
+        m_kernelDetail.clear();
+        return;
+    }
+
+    m_kernelHeadline =
+        QStringLiteral("You're running kernel version %1").arg(m_runningKernel);
+
+    if (m_installedKernels.isEmpty()) {
+        m_kernelDetail.clear();
+        return;
+    }
+
+    if (m_installedKernels.size() == 1) {
+        m_kernelDetail =
+            QStringLiteral("Boot image installed: %1").arg(m_installedKernels.first());
+        return;
+    }
+
+    m_kernelDetail =
+        QStringLiteral("Boot images on disk: %1")
+            .arg(m_installedKernels.join(QStringLiteral(", ")));
 }
 
 void UpdateController::holdPackage(const QString &name)
@@ -348,8 +376,7 @@ void UpdateController::saveCachedCheck()
     QJsonObject root;
     root.insert(QStringLiteral("when"), QDateTime::currentDateTime().toString(Qt::ISODate));
     root.insert(QStringLiteral("packages"), arr);
-    QFile f(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
-            + QStringLiteral("/last-check.json"));
+    QFile f(cacheFilePath());
     QDir().mkpath(QStandardPaths::writableLocation(QStandardPaths::CacheLocation));
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
         f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
@@ -357,8 +384,7 @@ void UpdateController::saveCachedCheck()
 
 bool UpdateController::loadCachedCheckData()
 {
-    QFile f(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
-            + QStringLiteral("/last-check.json"));
+    QFile f(cacheFilePath());
     if (!f.open(QIODevice::ReadOnly))
         return false;
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
@@ -393,6 +419,38 @@ void UpdateController::loadCachedCheck()
         return;
     }
     finalizeCheck();
+}
+
+QString UpdateController::cacheFilePath()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+           + QStringLiteral("/last-check.json");
+}
+
+void UpdateController::seedFromCache()
+{
+    if (!loadCachedCheckData())
+        return;
+
+    for (Pkg &p : m_collect) {
+        p.kernel = classifier::isKernel(p.name, p.source);
+        p.severity = classifier::classify(p);
+        p.summary = classifier::buildSummary(p);
+    }
+    applyHolds();
+    m_model->setItems(m_collect);
+
+    const int n = m_model->items().size();
+    if (n == 0)
+        setStatus(QStringLiteral("System is up to date."), QStringLiteral("uptodate"));
+    else
+        setStatus(QStringLiteral("%1 update%2 available.")
+                      .arg(n)
+                      .arg(n == 1 ? QString() : QStringLiteral("s")),
+                  QStringLiteral("ready"));
+
+    emit updatesChanged();
+    emit checkFinished();
 }
 
 void UpdateController::checkMirrorHealth()

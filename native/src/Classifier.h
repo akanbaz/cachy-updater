@@ -6,6 +6,7 @@
 namespace cachy::classifier {
 
 bool isKernel(const QString &name, Source source);
+bool isBootableKernelPackage(const QString &name);
 Severity classify(const Pkg &pkg);
 QString buildSummary(const Pkg &pkg);
 

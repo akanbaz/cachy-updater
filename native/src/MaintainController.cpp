@@ -1,12 +1,34 @@
 #include "MaintainController.h"
 
-#include "Helpers.h"
+#include "Classifier.h"
 #include "Helpers.h"
 #include "ProcessRunner.h"
 #include "SettingsController.h"
 
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <memory>
+
+namespace {
+
+int parseFlatpakUnusedCount(const QString &out)
+{
+    const QString text = out.trimmed();
+    if (text.isEmpty()
+        || text.contains(QStringLiteral("Nothing unused to uninstall"), Qt::CaseInsensitive))
+        return 0;
+
+    // flatpak prints CLI errors (e.g. unknown --dry-run) as a single line — not a candidate.
+    if (text.startsWith(QStringLiteral("error:"), Qt::CaseInsensitive))
+        return 0;
+
+    static const QRegularExpression rowRe(
+        QStringLiteral("^\\s*\\d+\\.\\s+\\S+"), QRegularExpression::MultilineOption);
+    const int rows = text.count(rowRe);
+    return rows > 0 ? rows : 0;
+}
+
+} // namespace
 
 using namespace cachy::helpers;
 
@@ -129,7 +151,7 @@ void MaintainController::scan()
                      QStringView(out).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
                  for (const QStringView &l : lines) {
                      const QString name = l.trimmed().toString();
-                     if (!name.startsWith(QLatin1String("linux")))
+                     if (!cachy::classifier::isBootableKernelPackage(name))
                          continue;
                      if (!running.contains(name, Qt::CaseInsensitive))
                          m_oldKernels << name;
@@ -140,15 +162,13 @@ void MaintainController::scan()
 
     if (!which(QStringLiteral("flatpak")).isEmpty()) {
         incInflight(1);
-        runQuiet(QStringLiteral("flatpak"), {QStringLiteral("uninstall"), QStringLiteral("--unused"), QStringLiteral("--dry-run")},
+        // No --dry-run support; probe without -y so nothing is removed during scan.
+        runQuiet(QStringLiteral("flatpak"),
+                 {QStringLiteral("uninstall"), QStringLiteral("--unused"),
+                  QStringLiteral("--noninteractive")},
                  [this](int, const QString &out) {
-                     m_flatpakUnused = 0;
-                     const QList<QStringView> lines =
-                         QStringView(out).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
-                     for (const QStringView &l : lines) {
-                         if (!l.trimmed().isEmpty())
-                             ++m_flatpakUnused;
-                     }
+                     m_flatpakUnused = parseFlatpakUnusedCount(out);
+                     updateDiskSummary();
                      emit changed();
                      incInflight(-1);
                  });
@@ -289,15 +309,42 @@ void MaintainController::cleanFlatpakUnused()
     if (m_busy || which(QStringLiteral("flatpak")).isEmpty())
         return;
     setBusy(true);
-    runStreaming(QStringLiteral("flatpak"),
-                 {QStringLiteral("uninstall"), QStringLiteral("--unused"), QStringLiteral("-y")},
-                 [this](int code) {
-                     if (code == 0)
-                         emitLine(QStringLiteral("Unused Flatpak runtimes removed."),
-                                  QStringLiteral("ok"));
-                     setBusy(false);
-                     scan();
-                 });
+    auto captured = std::make_shared<QString>();
+    emitLine(QStringLiteral("$ flatpak uninstall --unused -y"), QStringLiteral("cmd"));
+    auto *r = new ProcessRunner(this);
+    r->setMerged(true);
+    r->setTimeout(0);
+    connect(r, &ProcessRunner::line, this, [this, captured](const QString &l) {
+        *captured += l + QLatin1Char('\n');
+        const QString low = l.toLower();
+        QString kind = QStringLiteral("out");
+        if (low.contains(QLatin1String("error")) || low.contains(QLatin1String("failed")))
+            kind = QStringLiteral("error");
+        else if (low.contains(QLatin1String("warning")))
+            kind = QStringLiteral("warn");
+        emitLine(l, kind);
+    });
+    connect(r, &ProcessRunner::finished, this, [this, r, captured](int code, const QString &out) {
+        const QString text = out.isEmpty() ? *captured : out;
+        if (code == 0
+            && !text.contains(QStringLiteral("Nothing unused to uninstall"),
+                              Qt::CaseInsensitive))
+            emitLine(QStringLiteral("Unused Flatpak runtimes removed."), QStringLiteral("ok"));
+        else if (code == 0)
+            emitLine(QStringLiteral("No unused Flatpak runtimes to remove."),
+                     QStringLiteral("ok"));
+        r->deleteLater();
+        setBusy(false);
+        scan();
+    });
+    connect(r, &ProcessRunner::failed, this, [this, r](const QString &err) {
+        emitLine(err, QStringLiteral("error"));
+        m_warnings << err;
+        r->deleteLater();
+        setBusy(false);
+    });
+    r->start(QStringLiteral("flatpak"),
+             {QStringLiteral("uninstall"), QStringLiteral("--unused"), QStringLiteral("-y")});
 }
 
 void MaintainController::cleanAurCache()

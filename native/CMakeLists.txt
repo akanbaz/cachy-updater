@@ -59,6 +59,7 @@ qt_add_qml_module(cachyos-updater
         qml/components/SectionHeader.qml
         qml/components/PackageDelegate.qml
         qml/components/KernelCard.qml
+        qml/components/KernelInfoBar.qml
         qml/components/TerminalPanel.qml
 )
 

@@ -108,30 +108,7 @@ ColumnLayout {
         }
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        visible: Updater.installedKernels.length > 0
-        spacing: Theme.spacingSmall
-        QQC2.Label {
-            text: "Running: " + Updater.runningKernel
-            color: Theme.cyan
-            font.family: Theme.monoFamily
-            font.pixelSize: 12
-        }
-        QQC2.Label {
-            text: "Installed: " + Updater.installedKernels.join(", ")
-            color: Theme.textMuted
-            font.family: Theme.monoFamily
-            font.pixelSize: 12
-            Layout.fillWidth: true
-            elide: Text.ElideRight
-        }
-        QQC2.Button {
-            text: "Refresh"
-            flat: true
-            onClicked: Updater.refreshKernelInfo()
-        }
-    }
+    KernelInfoBar {}
 
     Repeater {
         model: Updater.kernelModel

@@ -35,6 +35,9 @@ class UpdateController : public QObject
     Q_PROPERTY(QString mirrorStatus READ mirrorStatus NOTIFY mirrorChanged)
     Q_PROPERTY(QString runningKernel READ runningKernel NOTIFY kernelInfoChanged)
     Q_PROPERTY(QStringList installedKernels READ installedKernels NOTIFY kernelInfoChanged)
+    Q_PROPERTY(QString kernelHeadline READ kernelHeadline NOTIFY kernelInfoChanged)
+    Q_PROPERTY(QString kernelDetail READ kernelDetail NOTIFY kernelInfoChanged)
+    Q_PROPERTY(bool showKernelInfo READ showKernelInfo NOTIFY kernelInfoChanged)
     Q_PROPERTY(bool snapshotsAvailable READ snapshotsAvailable CONSTANT)
     Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY filtersChanged)
     Q_PROPERTY(int minSeverity READ minSeverity WRITE setMinSeverity NOTIFY filtersChanged)
@@ -68,6 +71,9 @@ public:
     QString mirrorStatus() const { return m_mirrorStatus; }
     QString runningKernel() const { return m_runningKernel; }
     QStringList installedKernels() const { return m_installedKernels; }
+    QString kernelHeadline() const { return m_kernelHeadline; }
+    QString kernelDetail() const { return m_kernelDetail; }
+    bool showKernelInfo() const { return !m_runningKernel.isEmpty(); }
     bool snapshotsAvailable() const;
     QString searchText() const;
     int minSeverity() const;
@@ -97,6 +103,8 @@ public:
     Q_INVOKABLE void refreshKernelInfo();
     Q_INVOKABLE void refreshSafety();
     Q_INVOKABLE void loadCachedCheck();
+    Q_INVOKABLE void seedFromCache();
+    static QString cacheFilePath();
 
     Q_INVOKABLE QString sourceCommandFor(const QString &source) const;
     Q_INVOKABLE int sourceCountFor(const QString &source) const;
@@ -132,6 +140,8 @@ private:
     void saveCachedCheck();
     bool loadCachedCheckData();
     QString aurProgram() const;
+
+    void updateKernelCopy();
 
     void runStep(const QString &program, const QStringList &args,
                  const QProcessEnvironment &env,
@@ -169,6 +179,8 @@ private:
     QString m_mirrorStatus = QStringLiteral("Unknown");
     QString m_runningKernel;
     QStringList m_installedKernels;
+    QString m_kernelHeadline;
+    QString m_kernelDetail;
     QString m_reclaimableSpace;
     QString m_archGateText;
     bool m_archNewsBlocked = false;

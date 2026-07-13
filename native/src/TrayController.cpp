@@ -3,31 +3,54 @@
 #include "UpdateController.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QIcon>
 #include <QMenu>
+#include <QPixmap>
 #include <QProcess>
 #include <QSystemTrayIcon>
 #include <QTimer>
 
 namespace {
 
-QIcon loadTrayIcon(const QString &resourceName, const QString &themeName)
+QIcon trayIconFor(bool hasUpdates)
 {
-    const QString resourcePath = QStringLiteral(":/tray/assets/%1").arg(resourceName);
-    if (QFile::exists(resourcePath)) {
-        QIcon icon(resourcePath);
-        if (!icon.isNull())
-            return icon;
-    }
+    const QString themeName =
+        hasUpdates ? QStringLiteral("org.cachyos.updater-tray-updates")
+                   : QStringLiteral("org.cachyos.updater-tray");
+    const QString resourceName =
+        hasUpdates ? QStringLiteral("tray-updates.svg")
+                   : QStringLiteral("tray-uptodate.svg");
 
-    QIcon themed = QIcon::fromTheme(themeName);
-    if (!themed.isNull())
-        return themed;
+    auto sizedIcon = [](const QIcon &source) -> QIcon {
+        if (source.isNull())
+            return {};
+        QIcon out;
+        for (const int size : {16, 22, 32}) {
+            const QPixmap px = source.pixmap(size, size);
+            if (!px.isNull())
+                out.addPixmap(px);
+        }
+        return out;
+    };
 
-    if (resourceName == QLatin1String("tray-updates.svg"))
-        return QIcon::fromTheme(QStringLiteral("cachy-update_updates-available-blue"));
-    return QIcon::fromTheme(QStringLiteral("cachy-update-blue"));
+    QIcon icon = sizedIcon(QIcon::fromTheme(themeName));
+    if (!icon.isNull())
+        return icon;
+
+    const QString resourcePath =
+        QStringLiteral(":/tray/assets/%1").arg(resourceName);
+    if (QFile::exists(resourcePath))
+        icon = sizedIcon(QIcon(resourcePath));
+    if (!icon.isNull())
+        return icon;
+
+    if (hasUpdates)
+        return sizedIcon(QIcon::fromTheme(QStringLiteral("cachy-update_updates-available-blue")));
+    return sizedIcon(QIcon::fromTheme(QStringLiteral("cachy-update-blue")));
 }
 
 } // namespace
@@ -67,6 +90,22 @@ TrayController::TrayController(UpdateController *updater, SettingsController *se
         connect(m_settings, &SettingsController::settingsChanged, this, [this]() {
             m_timer->setInterval(m_settings->trayIntervalMinutes() * 60 * 1000);
         });
+
+    m_cacheDebounce = new QTimer(this);
+    m_cacheDebounce->setSingleShot(true);
+    m_cacheDebounce->setInterval(200);
+    connect(m_cacheDebounce, &QTimer::timeout, this, &TrayController::onCacheChanged);
+
+    m_cacheWatcher = new QFileSystemWatcher(this);
+    connect(m_cacheWatcher, &QFileSystemWatcher::fileChanged, this,
+            [this](const QString &) { m_cacheDebounce->start(); });
+    connect(m_cacheWatcher, &QFileSystemWatcher::directoryChanged, this,
+            [this](const QString &dir) {
+                const QString file = UpdateController::cacheFilePath();
+                if (QFile::exists(file) && !m_cacheWatcher->files().contains(file))
+                    m_cacheWatcher->addPath(file);
+                Q_UNUSED(dir)
+            });
 }
 
 TrayController::~TrayController() = default;
@@ -76,15 +115,35 @@ bool TrayController::available() const
     return QSystemTrayIcon::isSystemTrayAvailable();
 }
 
+void TrayController::watchCheckCache()
+{
+    const QString file = UpdateController::cacheFilePath();
+    const QString dir = QFileInfo(file).absolutePath();
+    if (QFile::exists(file))
+        m_cacheWatcher->addPath(file);
+    else if (QDir(dir).exists())
+        m_cacheWatcher->addPath(dir);
+}
+
 void TrayController::show()
 {
     if (m_settings)
         m_timer->setInterval(m_settings->trayIntervalMinutes() * 60 * 1000);
+
+    watchCheckCache();
+    m_updater->seedFromCache();
     updateAppearance();
     m_tray->show();
     m_timer->start();
     if (!m_settings || m_settings->autoCheckOnStartup())
         QTimer::singleShot(2500, this, &TrayController::checkNow);
+}
+
+void TrayController::onCacheChanged()
+{
+    m_updater->seedFromCache();
+    updateAppearance();
+    watchCheckCache();
 }
 
 void TrayController::buildMenu()
@@ -146,7 +205,7 @@ void TrayController::onCheckFinished()
     if (m_lastCount >= 0 && count > 0 && count != m_lastCount && shouldNotify(count)) {
         const int crit = m_updater->criticalCount();
         QString body = count == 1 ? QStringLiteral("1 update available")
-                                    : QStringLiteral("%1 updates available").arg(count);
+                                  : QStringLiteral("%1 updates available").arg(count);
         if (crit > 0)
             body += QStringLiteral(" (%1 important)").arg(crit);
         m_tray->showMessage(QStringLiteral("Cachy Updater"), body,
@@ -165,26 +224,20 @@ void TrayController::updateAppearance()
 {
     const int count = m_updater->packageCount();
     const bool busy = m_updater->busy();
-    QIcon icon;
     QString tip;
 
     if (busy) {
-        icon = loadTrayIcon(QStringLiteral("tray-uptodate.svg"),
-                            QStringLiteral("org.cachyos.updater-tray"));
         tip = QStringLiteral("Cachy Updater — %1 (%2%)")
                   .arg(m_updater->stage())
                   .arg(qRound(m_updater->progress() * 100));
     } else if (count > 0) {
-        icon = loadTrayIcon(QStringLiteral("tray-updates.svg"),
-                            QStringLiteral("org.cachyos.updater-tray-updates"));
         tip = count == 1 ? QStringLiteral("Cachy Updater — 1 update available")
                          : QStringLiteral("Cachy Updater — %1 updates available").arg(count);
     } else {
-        icon = loadTrayIcon(QStringLiteral("tray-uptodate.svg"),
-                            QStringLiteral("org.cachyos.updater-tray"));
         tip = QStringLiteral("Cachy Updater — up to date");
     }
 
+    const QIcon icon = busy ? trayIconFor(false) : trayIconFor(count > 0);
     if (!icon.isNull())
         m_tray->setIcon(icon);
     m_tray->setToolTip(tip);

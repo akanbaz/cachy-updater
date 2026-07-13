@@ -80,6 +80,15 @@ bool isKernel(const QString &name, Source source)
     return n.startsWith("linux-cachyos") || n.startsWith("linux-rt-");
 }
 
+bool isBootableKernelPackage(const QString &name)
+{
+    if (!isKernel(name, Source::Repo))
+        return false;
+    const QString n = name.toLower();
+    return !n.contains(QStringLiteral("-headers"))
+           && !n.contains(QStringLiteral("api-headers"));
+}
+
 QString versionBump(const QString &oldVer, const QString &newVer)
 {
     const Version o = parseVersion(oldVer);

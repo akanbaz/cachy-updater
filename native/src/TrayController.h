@@ -6,6 +6,7 @@ class QMenu;
 class QSystemTrayIcon;
 class QAction;
 class QTimer;
+class QFileSystemWatcher;
 class SettingsController;
 class UpdateController;
 
@@ -33,10 +34,12 @@ private slots:
     void onUpdatesChanged();
     void onCheckFinished();
     void onStageChanged();
+    void onCacheChanged();
 
 private:
     void updateAppearance();
     void buildMenu();
+    void watchCheckCache();
     bool shouldNotify(int count) const;
 
     UpdateController *m_updater;
@@ -48,5 +51,7 @@ private:
     QAction *m_applyAction = nullptr;
     QAction *m_quitAction = nullptr;
     QTimer *m_timer = nullptr;
+    QTimer *m_cacheDebounce = nullptr;
+    QFileSystemWatcher *m_cacheWatcher = nullptr;
     int m_lastCount = -1;
 };
