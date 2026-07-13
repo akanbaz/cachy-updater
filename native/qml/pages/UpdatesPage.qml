@@ -46,9 +46,16 @@ ColumnLayout {
         }
     }
 
+    KernelInfoBar {}
+
+    Repeater {
+        model: Updater.kernelModel
+        delegate: KernelCard {}
+    }
+
     RowLayout {
         Layout.fillWidth: true
-        visible: Updater.packageCount > 0
+        Layout.minimumHeight: 32
         spacing: Theme.spacingSmall
 
         QQC2.Label {
@@ -56,25 +63,23 @@ ColumnLayout {
             color: Theme.textDim
             font.family: Theme.sansFamily
             font.pixelSize: 13
-            text: Updater.packageCount
-                  + (Updater.packageCount === 1 ? " update pending" : " updates pending")
-                  + "   \u00b7   " + Updater.downloadText + " download"
-                  + "   \u00b7   " + Updater.sourceCount
-                  + (Updater.sourceCount === 1 ? " source" : " sources")
+            opacity: Updater.packageCount > 0 ? 1.0 : 0.0
+            text: Updater.packageCount > 0
+                  ? Updater.packageCount
+                    + (Updater.packageCount === 1 ? " update pending" : " updates pending")
+                    + "   \u00b7   " + Updater.downloadText + " download"
+                    + "   \u00b7   " + Updater.sourceCount
+                    + (Updater.sourceCount === 1 ? " source" : " sources")
+                  : " "
         }
 
         QQC2.CheckBox {
             text: "Select all"
+            opacity: Updater.packageCount > 0 ? 1.0 : 0.0
+            enabled: Updater.packageCount > 0 && !Updater.busy
             checked: Updater.selectedCount === Updater.packageCount && Updater.packageCount > 0
             onToggled: Updater.setAllSelected(checked)
         }
-    }
-
-    KernelInfoBar {}
-
-    Repeater {
-        model: Updater.kernelModel
-        delegate: KernelCard {}
     }
 
     ListView {

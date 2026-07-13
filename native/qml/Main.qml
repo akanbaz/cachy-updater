@@ -128,19 +128,27 @@ Kirigami.ApplicationWindow {
                                     color: root.statusColor()
                                     opacity: Updater.busy ? 0.5 : 1.0
                                 }
+                                Item {
+                                    visible: root.currentTab === 0
+                                    implicitWidth: 18
+                                    implicitHeight: 18
+                                    QQC2.BusyIndicator {
+                                        anchors.centerIn: parent
+                                        running: Updater.busy
+                                        visible: Updater.busy
+                                        implicitWidth: 18
+                                        implicitHeight: 18
+                                    }
+                                }
                                 QQC2.Label {
                                     visible: root.currentTab === 0
+                                    Layout.minimumWidth: 168
+                                    horizontalAlignment: Text.AlignRight
                                     text: Updater.statusText
                                     color: Theme.cyan
                                     font.family: Theme.sansFamily
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
-                                }
-                                QQC2.BusyIndicator {
-                                    visible: Updater.busy
-                                    running: Updater.busy
-                                    implicitWidth: 18
-                                    implicitHeight: 18
                                 }
                             }
 
@@ -208,15 +216,16 @@ Kirigami.ApplicationWindow {
                                         font.weight: tabButton.active ? Font.DemiBold : Font.Normal
                                     }
                                     Rectangle {
-                                        visible: tabButton.index === 0 && Updater.packageCount > 0
+                                        visible: tabButton.index === 0
                                         radius: 9
-                                        color: tabButton.active ? Theme.cyan : Theme.surfaceHover
+                                        width: 28
                                         implicitHeight: 18
-                                        implicitWidth: Math.max(18, countLabel.implicitWidth + 8)
+                                        color: tabButton.active ? Theme.cyan : Theme.surfaceHover
+                                        opacity: Updater.packageCount > 0 ? 1.0 : 0.0
                                         QQC2.Label {
                                             id: countLabel
                                             anchors.centerIn: parent
-                                            text: Updater.packageCount
+                                            text: Updater.packageCount > 0 ? Updater.packageCount : "0"
                                             color: tabButton.active ? Theme.cyanInk : Theme.textDim
                                             font.pixelSize: 11
                                             font.weight: Font.DemiBold
@@ -312,6 +321,8 @@ Kirigami.ApplicationWindow {
                             Item { Layout.fillWidth: true }
 
                             QQC2.Label {
+                                Layout.minimumWidth: 72
+                                horizontalAlignment: Text.AlignRight
                                 text: Updater.selectedCount + " selected"
                                 color: Theme.textMuted
                                 font.pixelSize: 12
@@ -332,6 +343,7 @@ Kirigami.ApplicationWindow {
 
                             QQC2.Button {
                                 id: applyButton
+                                Layout.minimumWidth: 168
                                 text: "Apply " + Updater.selectedCount + " update" + (Updater.selectedCount === 1 ? "" : "s")
                                 enabled: !Updater.busy && Updater.selectedCount > 0 && !Updater.archNewsBlocked
                                 onClicked: {
