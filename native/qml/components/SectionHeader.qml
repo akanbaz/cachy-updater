@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.cachyos.updater
 
-// ListView section delegate: source label pill + the exact command + totals.
 Item {
     id: header
     required property string section
@@ -46,7 +45,6 @@ Item {
                 font.family: Theme.sansFamily
                 font.pixelSize: 11
                 font.weight: Font.DemiBold
-                font.letterSpacing: 1
             }
         }
 
@@ -68,6 +66,17 @@ Item {
             color: Theme.textDim
             font.family: Theme.sansFamily
             font.pixelSize: 12
+        }
+
+        QQC2.Button {
+            text: "Update"
+            flat: true
+            enabled: !Updater.busy && Updater.sourceCountFor(header.section) > 0
+            onClicked: {
+                if (header.section === "repo") Updater.applyRepo()
+                else if (header.section === "aur") Updater.applyAur()
+                else Updater.applyFlatpak()
+            }
         }
     }
 }

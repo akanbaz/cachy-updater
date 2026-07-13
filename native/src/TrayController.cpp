@@ -1,4 +1,5 @@
 #include "TrayController.h"
+#include "SettingsController.h"
 #include "UpdateController.h"
 
 #include <QApplication>
@@ -24,7 +25,6 @@ QIcon loadTrayIcon(const QString &resourceName, const QString &themeName)
     if (!themed.isNull())
         return themed;
 
-    // Fallback to system theme icons when bundled assets are unavailable.
     if (resourceName == QLatin1String("tray-updates.svg"))
         return QIcon::fromTheme(QStringLiteral("cachy-update_updates-available-blue"));
     return QIcon::fromTheme(QStringLiteral("cachy-update-blue"));
@@ -32,27 +32,41 @@ QIcon loadTrayIcon(const QString &resourceName, const QString &themeName)
 
 } // namespace
 
-TrayController::TrayController(UpdateController *updater, QObject *parent)
+TrayController::TrayController(UpdateController *updater, SettingsController *settings,
+                               QObject *parent)
     : QObject(parent)
     , m_updater(updater)
+    , m_settings(settings)
 {
     m_tray = new QSystemTrayIcon(this);
     m_tray->setToolTip(QStringLiteral("Cachy Updater"));
-    connect(m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
-        if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick)
-            openWindow();
-    });
+    connect(m_tray, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+                if (reason == QSystemTrayIcon::Trigger
+                    || reason == QSystemTrayIcon::DoubleClick)
+                    openWindow();
+                else if (reason == QSystemTrayIcon::MiddleClick)
+                    checkNow();
+            });
 
     buildMenu();
     m_tray->setContextMenu(m_menu);
 
-    connect(m_updater, &UpdateController::updatesChanged, this, &TrayController::onUpdatesChanged);
-    connect(m_updater, &UpdateController::checkFinished, this, &TrayController::onCheckFinished);
-    connect(m_updater, &UpdateController::busyChanged, this, &TrayController::updateAppearance);
+    connect(m_updater, &UpdateController::updatesChanged, this,
+            &TrayController::onUpdatesChanged);
+    connect(m_updater, &UpdateController::checkFinished, this,
+            &TrayController::onCheckFinished);
+    connect(m_updater, &UpdateController::busyChanged, this,
+            &TrayController::updateAppearance);
+    connect(m_updater, &UpdateController::stageChanged, this,
+            &TrayController::onStageChanged);
 
     m_timer = new QTimer(this);
-    m_timer->setInterval(30 * 60 * 1000);
     connect(m_timer, &QTimer::timeout, this, &TrayController::checkNow);
+    if (m_settings)
+        connect(m_settings, &SettingsController::settingsChanged, this, [this]() {
+            m_timer->setInterval(m_settings->trayIntervalMinutes() * 60 * 1000);
+        });
 }
 
 TrayController::~TrayController() = default;
@@ -64,17 +78,24 @@ bool TrayController::available() const
 
 void TrayController::show()
 {
+    if (m_settings)
+        m_timer->setInterval(m_settings->trayIntervalMinutes() * 60 * 1000);
     updateAppearance();
     m_tray->show();
     m_timer->start();
-    QTimer::singleShot(2500, this, &TrayController::checkNow);
+    if (!m_settings || m_settings->autoCheckOnStartup())
+        QTimer::singleShot(2500, this, &TrayController::checkNow);
 }
 
 void TrayController::buildMenu()
 {
     m_menu = new QMenu;
-    m_openAction = m_menu->addAction(QStringLiteral("Open Cachy Updater"), this, &TrayController::openWindow);
-    m_checkAction = m_menu->addAction(QStringLiteral("Check for updates"), this, &TrayController::checkNow);
+    m_openAction = m_menu->addAction(QStringLiteral("Open Cachy Updater"), this,
+                                     &TrayController::openWindow);
+    m_checkAction = m_menu->addAction(QStringLiteral("Check for updates"), this,
+                                      &TrayController::checkNow);
+    m_applyAction = m_menu->addAction(QStringLiteral("Apply all updates"), this,
+                                      &TrayController::applyAll);
     m_menu->addSeparator();
     m_quitAction = m_menu->addAction(QStringLiteral("Quit"), this, [this]() {
         emit quitRequested();
@@ -82,19 +103,36 @@ void TrayController::buildMenu()
     });
     Q_UNUSED(m_openAction)
     Q_UNUSED(m_checkAction)
+    Q_UNUSED(m_applyAction)
     Q_UNUSED(m_quitAction)
 }
 
 void TrayController::openWindow()
 {
-    const QString program = QApplication::applicationFilePath();
-    QProcess::startDetached(program, {});
+    QProcess::startDetached(QApplication::applicationFilePath(), {});
 }
 
 void TrayController::checkNow()
 {
     if (!m_updater->busy())
         m_updater->check();
+}
+
+void TrayController::applyAll()
+{
+    if (m_updater->busy())
+        return;
+    m_updater->setAllSelected(true);
+    m_updater->apply();
+}
+
+bool TrayController::shouldNotify(int count) const
+{
+    if (count <= 0)
+        return false;
+    if (!m_settings || !m_settings->notifyCriticalOnly())
+        return true;
+    return m_updater->criticalCount() > 0;
 }
 
 void TrayController::onUpdatesChanged()
@@ -105,12 +143,21 @@ void TrayController::onUpdatesChanged()
 void TrayController::onCheckFinished()
 {
     const int count = m_updater->packageCount();
-    if (m_lastCount >= 0 && count > 0 && count != m_lastCount)
-        m_tray->showMessage(QStringLiteral("Cachy Updater"),
-                            count == 1 ? QStringLiteral("1 update available")
-                                       : QStringLiteral("%1 updates available").arg(count),
-                            QSystemTrayIcon::Information, 6000);
+    if (m_lastCount >= 0 && count > 0 && count != m_lastCount && shouldNotify(count)) {
+        const int crit = m_updater->criticalCount();
+        QString body = count == 1 ? QStringLiteral("1 update available")
+                                    : QStringLiteral("%1 updates available").arg(count);
+        if (crit > 0)
+            body += QStringLiteral(" (%1 important)").arg(crit);
+        m_tray->showMessage(QStringLiteral("Cachy Updater"), body,
+                            QSystemTrayIcon::Information, 8000);
+    }
     m_lastCount = count;
+    updateAppearance();
+}
+
+void TrayController::onStageChanged()
+{
     updateAppearance();
 }
 
@@ -124,7 +171,9 @@ void TrayController::updateAppearance()
     if (busy) {
         icon = loadTrayIcon(QStringLiteral("tray-uptodate.svg"),
                             QStringLiteral("org.cachyos.updater-tray"));
-        tip = QStringLiteral("Cachy Updater — checking for updates\u2026");
+        tip = QStringLiteral("Cachy Updater — %1 (%2%)")
+                  .arg(m_updater->stage())
+                  .arg(qRound(m_updater->progress() * 100));
     } else if (count > 0) {
         icon = loadTrayIcon(QStringLiteral("tray-updates.svg"),
                             QStringLiteral("org.cachyos.updater-tray-updates"));
@@ -139,4 +188,6 @@ void TrayController::updateAppearance()
     if (!icon.isNull())
         m_tray->setIcon(icon);
     m_tray->setToolTip(tip);
+    if (m_applyAction)
+        m_applyAction->setEnabled(!busy && count > 0);
 }

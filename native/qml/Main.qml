@@ -23,21 +23,33 @@ Kirigami.ApplicationWindow {
         { name: "News", icon: "news-subscribe",
           subtitle: "Arch and CachyOS announcements." },
         { name: "Cleanup", icon: "edit-clear-all",
-          subtitle: "Remove orphaned packages and clear the package cache." }
+          subtitle: "Orphans, cache, kernels, Flatpak, and AUR maintenance." },
+        { name: "Firmware", icon: "cpu",
+          subtitle: "Device firmware via fwupd." },
+        { name: "History", icon: "view-list-details",
+          subtitle: "Recent apply and maintenance actions." },
+        { name: "Settings", icon: "configure",
+          subtitle: "Tray, sources, holds, and performance options." }
     ]
 
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
 
     property bool newsLoaded: false
     property bool cleanupLoaded: false
+    property bool firmwareLoaded: false
 
     function loadTab() {
-        if (currentTab === 1 && !newsLoaded) { newsLoaded = true; News.refresh() }
-        else if (currentTab === 2 && !cleanupLoaded) { cleanupLoaded = true; Maintain.scan() }
+        if (currentTab === 1 && !newsLoaded && Settings.enableNews && !Settings.offlineMode) {
+            newsLoaded = true; News.refresh()
+        } else if (currentTab === 2 && !cleanupLoaded) {
+            cleanupLoaded = true; Maintain.scan()
+        } else if (currentTab === 3 && !firmwareLoaded) {
+            firmwareLoaded = true; Firmware.scan()
+        }
     }
 
     onCurrentTabChanged: loadTab()
-    Component.onCompleted: { Updater.check(); loadTab() }
+    Component.onCompleted: loadTab()
 
     function statusColor() {
         switch (Updater.statusState) {
@@ -49,6 +61,11 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    Shortcut { sequence: "R"; onActivated: if (!Updater.busy) Updater.check() }
+    Shortcut { sequence: "Ctrl+A"; onActivated: Updater.setAllSelected(true) }
+    Shortcut { sequence: "Ctrl+Return"; onActivated: if (!Updater.busy && Updater.selectedCount > 0) confirmDialog.open() }
+    Shortcut { sequence: "Escape"; onActivated: Updater.cancel() }
+
     pageStack.initialPage: Kirigami.Page {
         padding: 0
 
@@ -56,7 +73,6 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             spacing: 0
 
-            // ---- Header ------------------------------------------------
             Rectangle {
                 Layout.fillWidth: true
                 color: Theme.bg
@@ -71,7 +87,6 @@ Kirigami.ApplicationWindow {
                     anchors.rightMargin: Theme.spacingLarge
                     spacing: 2
 
-                    // Section icon + title + status readout.
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.spacing
@@ -107,7 +122,6 @@ Kirigami.ApplicationWindow {
                                     implicitWidth: 8; implicitHeight: 8; radius: 4
                                     color: root.statusColor()
                                     opacity: Updater.busy ? 0.5 : 1.0
-                                    Layout.alignment: Qt.AlignVCenter
                                 }
                                 QQC2.Label {
                                     visible: root.currentTab === 0
@@ -116,14 +130,12 @@ Kirigami.ApplicationWindow {
                                     font.family: Theme.sansFamily
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
-                                    Layout.alignment: Qt.AlignVCenter
                                 }
                                 QQC2.BusyIndicator {
                                     visible: Updater.busy
                                     running: Updater.busy
                                     implicitWidth: 18
                                     implicitHeight: 18
-                                    Layout.alignment: Qt.AlignVCenter
                                 }
                             }
 
@@ -139,13 +151,11 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            // ---- Nav tabs ----------------------------------------------
             Rectangle {
                 Layout.fillWidth: true
                 color: Theme.bg
                 implicitHeight: 46
 
-                // Full-width baseline the active underline sits on.
                 Rectangle {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -154,98 +164,93 @@ Kirigami.ApplicationWindow {
                     color: Theme.border
                 }
 
-                RowLayout {
-                    id: tabRow
-                    anchors.left: parent.left
-                    anchors.bottom: parent.bottom
+                Flickable {
+                    anchors.fill: parent
                     anchors.leftMargin: Theme.spacingLarge
-                    spacing: Theme.spacingLarge
+                    contentWidth: tabRow.width
+                    clip: true
 
-                    Repeater {
-                        model: root.tabs
-                        delegate: QQC2.AbstractButton {
-                            id: tabButton
-                            required property int index
-                            required property var modelData
-                            readonly property bool active: root.currentTab === index
-                            hoverEnabled: true
-                            implicitHeight: 40
-                            implicitWidth: tabContent.implicitWidth
-                            onClicked: root.currentTab = index
+                    RowLayout {
+                        id: tabRow
+                        spacing: Theme.spacingLarge
 
-                            contentItem: RowLayout {
-                                id: tabContent
-                                spacing: 4
+                        Repeater {
+                            model: root.tabs
+                            delegate: QQC2.AbstractButton {
+                                id: tabButton
+                                required property int index
+                                required property var modelData
+                                readonly property bool active: root.currentTab === index
+                                implicitHeight: 40
+                                implicitWidth: tabContent.implicitWidth
+                                onClicked: root.currentTab = index
 
-                                Kirigami.Icon {
-                                    source: modelData.icon
-                                    implicitWidth: 16
-                                    implicitHeight: 16
-                                    color: tabButton.active ? Theme.cyan : Theme.textMuted
-                                    opacity: tabButton.active ? 1.0 : 0.75
-                                }
+                                contentItem: RowLayout {
+                                    id: tabContent
+                                    spacing: 4
 
-                                QQC2.Label {
-                                    text: modelData.name
-                                    color: tabButton.active ? Theme.text
-                                         : tabButton.hovered ? Theme.textDim : Theme.textMuted
-                                    font.family: Theme.sansFamily
-                                    font.pixelSize: 14
-                                    font.weight: tabButton.active ? Font.DemiBold : Font.Normal
-                                }
-
-                                // Count badge (Updates tab only).
-                                Rectangle {
-                                    visible: tabButton.index === 0 && Updater.packageCount > 0
-                                    radius: height / 2
-                                    color: tabButton.active ? Theme.cyan : Theme.surfaceHover
-                                    implicitHeight: 18
-                                    implicitWidth: Math.max(18, countLabel.implicitWidth + Theme.spacingSmall)
+                                    Kirigami.Icon {
+                                        source: modelData.icon
+                                        implicitWidth: 16
+                                        implicitHeight: 16
+                                        color: tabButton.active ? Theme.cyan : Theme.textMuted
+                                    }
                                     QQC2.Label {
-                                        id: countLabel
-                                        anchors.centerIn: parent
-                                        text: Updater.packageCount
-                                        color: tabButton.active ? Theme.cyanInk : Theme.textDim
+                                        text: modelData.name
+                                        color: tabButton.active ? Theme.text : Theme.textMuted
                                         font.family: Theme.sansFamily
-                                        font.pixelSize: 11
-                                        font.weight: Font.DemiBold
+                                        font.pixelSize: 14
+                                        font.weight: tabButton.active ? Font.DemiBold : Font.Normal
+                                    }
+                                    Rectangle {
+                                        visible: tabButton.index === 0 && Updater.packageCount > 0
+                                        radius: 9
+                                        color: tabButton.active ? Theme.cyan : Theme.surfaceHover
+                                        implicitHeight: 18
+                                        implicitWidth: Math.max(18, countLabel.implicitWidth + 8)
+                                        QQC2.Label {
+                                            id: countLabel
+                                            anchors.centerIn: parent
+                                            text: Updater.packageCount
+                                            color: tabButton.active ? Theme.cyanInk : Theme.textDim
+                                            font.pixelSize: 11
+                                            font.weight: Font.DemiBold
+                                        }
                                     }
                                 }
-                            }
 
-                            // Active underline indicator.
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: 2
-                                radius: 1
-                                color: Theme.cyan
-                                visible: tabButton.active
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    height: 2
+                                    color: Theme.cyan
+                                    visible: tabButton.active
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // ---- Content + bottom chrome --------------------------------
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
                 StackLayout {
-                    id: pageStack
                     anchors.fill: parent
                     anchors.margins: Theme.spacingLarge
-                    anchors.bottomMargin: bottomChrome.height + Theme.spacingLarge
+                    anchors.bottomMargin: bottomChrome.visible ? bottomChrome.height + Theme.spacingLarge : Theme.spacingLarge
                     currentIndex: root.currentTab
 
                     UpdatesPage {}
                     NewsPage {}
                     CleanupPage {}
+                    FirmwarePage {}
+                    HistoryPage {}
+                    SettingsPage {}
                 }
 
-                // Terminal + footer pinned to the bottom; terminal expands upward.
                 ColumnLayout {
                     id: bottomChrome
                     anchors.left: parent.left
@@ -253,12 +258,10 @@ Kirigami.ApplicationWindow {
                     anchors.bottom: parent.bottom
                     visible: root.currentTab === 0 || root.currentTab === 2
                     spacing: 0
-                    width: parent.width
 
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
 
                     TerminalPanel {
-                        id: terminal
                         controller: root.currentTab === 2 ? Maintain : Updater
                         radius: 0
                         edgeMargin: Theme.spacingLarge
@@ -295,8 +298,7 @@ Kirigami.ApplicationWindow {
 
                             QQC2.Label {
                                 text: "v" + AppVersion
-                                      + (Updater.lastChecked.length > 0
-                                         ? "   \u00b7   last checked " + Updater.lastChecked : "")
+                                      + (Updater.lastChecked.length > 0 ? "   \u00b7   last checked " + Updater.lastChecked : "")
                                 color: Theme.textFaint
                                 font.family: Theme.monoFamily
                                 font.pixelSize: 12
@@ -307,7 +309,6 @@ Kirigami.ApplicationWindow {
                             QQC2.Label {
                                 text: Updater.selectedCount + " selected"
                                 color: Theme.textMuted
-                                font.family: Theme.sansFamily
                                 font.pixelSize: 12
                             }
 
@@ -319,31 +320,20 @@ Kirigami.ApplicationWindow {
                                 QQC2.Menu {
                                     id: moreMenu
                                     y: -height
-                                    QQC2.MenuItem {
-                                        text: "Dry Run"
-                                        icon.name: "system-run"
-                                        onTriggered: Updater.dryRun()
-                                    }
-                                    QQC2.MenuItem {
-                                        text: "Download Only"
-                                        icon.name: "download"
-                                        onTriggered: Updater.downloadOnly()
-                                    }
+                                    QQC2.MenuItem { text: "Dry Run"; onTriggered: Updater.dryRun() }
+                                    QQC2.MenuItem { text: "Download Only"; onTriggered: Updater.downloadOnly() }
                                 }
                             }
 
                             QQC2.Button {
                                 id: applyButton
                                 text: "Apply " + Updater.selectedCount + " update" + (Updater.selectedCount === 1 ? "" : "s")
-                                enabled: !Updater.busy && Updater.selectedCount > 0
+                                enabled: !Updater.busy && Updater.selectedCount > 0 && !Updater.archNewsBlocked
                                 onClicked: confirmDialog.open()
 
                                 contentItem: QQC2.Label {
-                                    id: applyLabel
                                     text: applyButton.text
                                     color: applyButton.enabled ? Theme.cyanInk : Theme.textFaint
-                                    font.family: Theme.sansFamily
-                                    font.pixelSize: 13
                                     font.weight: Font.DemiBold
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
@@ -353,11 +343,10 @@ Kirigami.ApplicationWindow {
                                 background: Rectangle {
                                     radius: Theme.radiusSmall
                                     implicitHeight: 32
-                                    implicitWidth: Math.max(130, applyLabel.implicitWidth)
+                                    implicitWidth: Math.max(130, applyButton.contentItem.implicitWidth)
                                     color: !applyButton.enabled ? Theme.surfaceHover
                                          : applyButton.pressed ? Theme.cyanPressed
-                                         : applyButton.hovered ? Theme.cyanHover
-                                         : Theme.cyan
+                                         : applyButton.hovered ? Theme.cyanHover : Theme.cyan
                                 }
                             }
                         }
@@ -372,25 +361,16 @@ Kirigami.ApplicationWindow {
         title: "Apply updates?"
         standardButtons: Kirigami.Dialog.NoButton
         customFooterActions: [
-            Kirigami.Action {
-                text: "Cancel"
-                icon.name: "dialog-cancel"
-                onTriggered: confirmDialog.close()
-            },
+            Kirigami.Action { text: "Cancel"; onTriggered: confirmDialog.close() },
             Kirigami.Action {
                 text: "Apply"
-                icon.name: "dialog-ok-apply"
                 onTriggered: { confirmDialog.close(); Updater.apply() }
             }
         ]
 
         ColumnLayout {
             spacing: Theme.spacingSmall
-            QQC2.Label {
-                text: "The following commands will run:"
-                color: Theme.textDim
-                font.family: Theme.sansFamily
-            }
+            QQC2.Label { text: "The following commands will run:"; color: Theme.textDim }
             Rectangle {
                 Layout.fillWidth: true
                 color: Theme.deepBg
@@ -407,12 +387,31 @@ Kirigami.ApplicationWindow {
                     wrapMode: Text.WrapAnywhere
                 }
             }
-            QQC2.Label {
-                text: "You may be prompted for your password."
-                color: Theme.textMuted
-                font.family: Theme.sansFamily
-                font.pixelSize: 12
+            Banner {
+                visible: Updater.rebootRequired
+                text: "A reboot will be required afterward."
+                severity: "info"
+                closable: false
             }
+        }
+    }
+
+    Kirigami.PromptDialog {
+        id: rebootDialog
+        title: "Reboot required"
+        subtitle: "Important system packages were updated."
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action { text: "Later"; onTriggered: rebootDialog.close() },
+            Kirigami.Action { text: "Reboot now"; onTriggered: { rebootDialog.close(); Updater.reboot() } }
+        ]
+    }
+
+    Connections {
+        target: Updater
+        function onApplyFinished(ok) {
+            if (ok && Updater.rebootRequired)
+                rebootDialog.open()
         }
     }
 }

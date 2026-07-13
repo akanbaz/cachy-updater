@@ -7,20 +7,51 @@ single-binary, and styled to the CachyOS design language.
 
 ## Features
 
-- Native **Kirigami / Qt Quick** UI
-- Grouped **Repo** (`checkupdates` / `pacman`), **AUR** (`paru`), and **Flatpak** updates
-- **Kernel updates** pulled out distinctly with a reboot hint
-- Per-package **severity badges** and expandable **change summaries**
-- Exact commands shown, with a collapsible **Terminal** panel (real-time output, copy log)
-- **Apply / Dry Run / Download Only**, full `pacman -Syu` with a partial-upgrade guard (`--ignore`)
-- **News** tab (Arch RSS + best-effort CachyOS feeds via `QNetworkAccessManager`)
-- **Cleanup** tab: orphan removal (`pacman -Rns`) and cache cleanup (`paccache`)
-- Background **system tray** applet (`cachyos-updater --tray`) with colored status icons
-- Polkit (`pkexec`) for privileged operations
+### Updates
+- Grouped **Repo** (`checkupdates` / `pacman`), **AUR** (`paru` or `yay`), and **Flatpak** updates
+- **Search & filters** (name, severity, source)
+- **Package holds** persisted across sessions
+- **Kernel card** with running-kernel indicator and installed-kernel list
+- Per-package **severity badges**, **changelogs** (expac / AUR RPC), expandable summaries
+- **Arch news gate** — acknowledge recent Arch news before repo apply
+- **Reboot prompt** after kernel/systemd/firmware-class updates
+- **NVIDIA + kernel warning** when both are selected
+- **Mirror health check**
+- **Per-source apply** (repo / AUR / Flatpak buttons in section headers)
+- **Dry run / Download only / Apply**, partial-upgrade guard (`--ignore`)
+- **Snapper pre-update snapshot** (when available)
+- **Offline mode** with cached last-check results
+- **Keyboard shortcuts**: `R` refresh, `Ctrl+A` select all, `Ctrl+Enter` apply, `Esc` cancel
+
+### News
+- Arch + CachyOS RSS feeds
+- Arch news acknowledgement integrated with update safety gate
+
+### Cleanup
+- Orphan removal, configurable **paccache** retention
+- **Old kernel** cleanup
+- **Flatpak unused** runtimes
+- **AUR cache** cleanup
+- Disk-space summary
+
+### Firmware
+- **fwupd** integration (scan + update devices)
+
+### History
+- Log of apply and maintenance actions
+
+### Settings
+- Tray interval, auto-check, default tab, source toggles
+- Notify-only-important, scheduled checks (systemd timer)
+- Pacman parallel downloads, AUR concurrency, snapshot toggle
+
+### Tray
+- Colored status icons, progress in tooltip
+- Middle-click check, **Apply all** menu action
+- Rich notifications with important-update count
+- CLI: `cachyos-updater --check --notify`
 
 ## Runtime dependencies
-
-Required on a stock CachyOS Plasma install:
 
 | Package | Purpose |
 |---------|---------|
@@ -36,10 +67,12 @@ Optional (auto-detected):
 
 | Package | Purpose |
 |---------|---------|
-| `paru` | AUR updates |
+| `paru` / `yay` | AUR updates |
 | `pacman-contrib` | `checkupdates` and `paccache` |
-| `expac` | Fast package metadata |
+| `expac` | Metadata and changelogs |
 | `flatpak` | Flatpak updates |
+| `fwupd` | Firmware tab |
+| `snapper` | Pre-update btrfs snapshots |
 
 ## Build
 
@@ -50,50 +83,20 @@ cmake --build build
 ./build/cachyos-updater
 ```
 
-Build requirements: `cmake`, `ninja`, `qt6-base`, `qt6-declarative`, C++20 compiler.
-
 ## Install
 
 ```bash
 cd native
 cmake --install build
 systemctl --user enable --now org.cachyos.updater-tray.service
+# optional nightly checks:
+systemctl --user enable --now org.cachyos.updater-check.timer
 ```
-
-Or via the Arch package:
-
-```bash
-cd packaging && makepkg -si
-```
-
-The package install script disables the legacy `arch-update-tray` service and
-enables `org.cachyos.updater-tray.service`.
-
-QML, tray icons, and UI assets are embedded in the single ELF via the Qt
-Resource System. Runtime links only against system Qt6/Kirigami libraries.
 
 ## Architecture
 
-Thin QML/Kirigami views bind to C++ `QObject` controllers and a
-`QAbstractListModel`. All external work runs through one async `ProcessRunner`
-(`QProcess`) — the UI never blocks.
-
 ```
-native/
-  src/    ProcessRunner, UpdateController, UpdatesModel, Classifier,
-          NewsController, MaintainController, TrayController, main.cpp
-  qml/    Main.qml, Theme.qml, pages/, components/
-  assets/ logo.svg, tray-uptodate.svg, tray-updates.svg
-packaging/
-  PKGBUILD, cachyos-updater.install
-```
-
-## Project layout
-
-```
-cachy-updater/
-├── LICENSE
-├── README.md
-├── native/           # C++/QML application
-└── packaging/        # Arch Linux PKGBUILD
+native/src/   SettingsController, HistoryController, FwupdController,
+              UpdateController, NewsController, MaintainController, TrayController
+native/qml/   Main.qml + pages (Updates, News, Cleanup, Firmware, History, Settings)
 ```

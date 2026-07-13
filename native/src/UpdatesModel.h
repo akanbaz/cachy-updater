@@ -6,9 +6,6 @@
 #include <QSortFilterProxyModel>
 #include <QVector>
 
-// Flat list of all pending package updates. Grouping (by source) and the
-// kernel/non-kernel split are handled by lightweight proxies so the QML views
-// stay reactive on selection changes without any full rebuilds.
 class UpdatesModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -24,9 +21,13 @@ public:
         SeverityRole,
         SeverityLabelRole,
         IsKernelRole,
+        RunningKernelRole,
         SummaryRole,
+        ChangelogRole,
         CommandRole,
         SelectedRole,
+        HeldRole,
+        FlatpakKindRole,
     };
 
     explicit UpdatesModel(QObject *parent = nullptr);
@@ -42,7 +43,9 @@ public:
     const QVector<cachy::Pkg> &items() const { return m_items; }
 
     void setAllSelected(bool selected);
+    void selectSource(cachy::Source source, bool selected);
     int selectedCount() const;
+    int selectedCountFor(cachy::Source source) const;
 
 signals:
     void selectionChanged();
@@ -51,8 +54,6 @@ private:
     QVector<cachy::Pkg> m_items;
 };
 
-// Filters by kernel flag (kernel packages become cards; the rest become the
-// grouped list) and sorts by source order then name.
 class PkgFilterProxy : public QSortFilterProxyModel
 {
     Q_OBJECT
@@ -67,4 +68,36 @@ protected:
 
 private:
     bool m_wantKernel;
+};
+
+// Search / severity / source filters for the non-kernel list.
+class UpdateListProxy : public PkgFilterProxy
+{
+    Q_OBJECT
+    Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY filtersChanged)
+    Q_PROPERTY(int minSeverity READ minSeverity WRITE setMinSeverity NOTIFY filtersChanged)
+    Q_PROPERTY(QString sourceFilter READ sourceFilter WRITE setSourceFilter NOTIFY filtersChanged)
+
+public:
+    explicit UpdateListProxy(QObject *parent = nullptr);
+
+    QString searchText() const { return m_searchText; }
+    int minSeverity() const { return m_minSeverity; }
+    QString sourceFilter() const { return m_sourceFilter; }
+
+    void setSearchText(const QString &text);
+    void setMinSeverity(int severity);
+    void setSourceFilter(const QString &source);
+
+signals:
+    void filtersChanged();
+
+protected:
+    bool filterAcceptsRow(int sourceRow,
+                          const QModelIndex &sourceParent) const override;
+
+private:
+    QString m_searchText;
+    int m_minSeverity = 0;
+    QString m_sourceFilter;
 };

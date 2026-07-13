@@ -16,13 +16,17 @@ struct Pkg {
     QString repo;
     QString description;
     QString summary;
+    QString changelog;
     QString flatpakId;
+    QString flatpakKind; // app, runtime, extension
     Source source = Source::Repo;
     Severity severity = Severity::Routine;
     qint64 sizeBytes = 0;
     QStringList groups;
     bool selected = true;
+    bool held = false;
     bool kernel = false;
+    bool runningKernel = false;
 };
 
 inline QString sourceKey(Source s)

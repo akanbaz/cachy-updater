@@ -1,0 +1,6 @@
+[Unit]
+Description=CachyOS Updater scheduled check
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cachyos-updater --check --notify

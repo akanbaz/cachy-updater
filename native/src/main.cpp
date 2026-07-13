@@ -1,5 +1,8 @@
+#include "FwupdController.h"
+#include "HistoryController.h"
 #include "MaintainController.h"
 #include "NewsController.h"
+#include "SettingsController.h"
 #include "TrayController.h"
 #include "UpdateController.h"
 
@@ -12,6 +15,8 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QStandardPaths>
+#include <QSystemTrayIcon>
+#include <QTimer>
 #include <memory>
 
 static std::unique_ptr<QLockFile> g_trayLock;
@@ -31,7 +36,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("cachyos-updater"));
-    app.setApplicationVersion(QStringLiteral("1.0.0"));
+    app.setApplicationVersion(QStringLiteral("1.1.0"));
     app.setOrganizationName(QStringLiteral("CachyOS"));
     app.setDesktopFileName(QStringLiteral("org.cachyos.updater"));
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("system-software-update")));
@@ -42,21 +47,57 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
     const QCommandLineOption trayOption(QStringList{QStringLiteral("tray")},
                                         QStringLiteral("Run as a background system tray applet"));
+    const QCommandLineOption checkOption(QStringList{QStringLiteral("check")},
+                                         QStringLiteral("Check for updates and exit"));
+    const QCommandLineOption notifyOption(QStringList{QStringLiteral("notify")},
+                                          QStringLiteral("Send a tray notification if updates exist"));
     parser.addOption(trayOption);
+    parser.addOption(checkOption);
+    parser.addOption(notifyOption);
     parser.process(app);
 
     if (QQuickStyle::name().isEmpty())
         QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
 
-    UpdateController updater;
+    SettingsController settings;
+    HistoryController history;
+    UpdateController updater(&settings, &history);
     NewsController news;
-    MaintainController maintain;
+    MaintainController maintain(&settings);
+    FwupdController firmware;
+
+    updater.setNewsGateChecker([&news, &settings](QString *text) {
+        return news.checkArchGate(&settings, text);
+    });
+    QObject::connect(&news, &NewsController::changed, &updater,
+                     &UpdateController::refreshSafety);
+
+    if (parser.isSet(checkOption)) {
+        QObject::connect(&updater, &UpdateController::checkFinished, &app, [&]() {
+            const int count = updater.packageCount();
+            if (parser.isSet(notifyOption) && count > 0
+                && QSystemTrayIcon::isSystemTrayAvailable()) {
+                QSystemTrayIcon tray;
+                tray.setIcon(QIcon::fromTheme(QStringLiteral("system-software-update")));
+                tray.show();
+                tray.showMessage(QStringLiteral("Cachy Updater"),
+                                 count == 1 ? QStringLiteral("1 update available")
+                                            : QStringLiteral("%1 updates available").arg(count),
+                                 QSystemTrayIcon::Information, 6000);
+            }
+            QTimer::singleShot(500, &app, [&app, count]() {
+                app.exit(count > 0 ? 100 : 0);
+            });
+        });
+        updater.check();
+        return app.exec();
+    }
 
     if (parser.isSet(trayOption)) {
         if (!acquireTrayLock())
             return 0;
 
-        TrayController tray(&updater);
+        TrayController tray(&updater, &settings);
         if (!tray.available())
             return 1;
 
@@ -65,16 +106,22 @@ int main(int argc, char *argv[])
     }
 
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("Settings"), &settings);
+    engine.rootContext()->setContextProperty(QStringLiteral("History"), &history);
     engine.rootContext()->setContextProperty(QStringLiteral("Updater"), &updater);
     engine.rootContext()->setContextProperty(QStringLiteral("News"), &news);
     engine.rootContext()->setContextProperty(QStringLiteral("Maintain"), &maintain);
+    engine.rootContext()->setContextProperty(QStringLiteral("Firmware"), &firmware);
     engine.rootContext()->setContextProperty(
-        QStringLiteral("StartTab"), qEnvironmentVariableIntValue("CACHYOS_TAB"));
+        QStringLiteral("StartTab"), settings.defaultTab());
     engine.rootContext()->setContextProperty(
         QStringLiteral("AppVersion"), app.applicationVersion());
     engine.loadFromModule("org.cachyos.updater", "Main");
     if (engine.rootObjects().isEmpty())
         return -1;
+
+    if (settings.autoCheckOnStartup())
+        updater.check();
 
     return app.exec();
 }

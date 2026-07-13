@@ -10,11 +10,10 @@
 #include <QVector>
 #include <functional>
 
+class HistoryController;
 class ProcessRunner;
+class SettingsController;
 
-// Central controller for the Updates page: runs the check pipeline, owns the
-// data model, and drives apply / dry-run / download-only through pacman/paru/
-// flatpak. Everything is async via ProcessRunner; the UI thread never blocks.
 class UpdateController : public QObject
 {
     Q_OBJECT
@@ -29,11 +28,27 @@ class UpdateController : public QObject
     Q_PROPERTY(QString lastChecked READ lastChecked NOTIFY updatesChanged)
     Q_PROPERTY(QString stage READ stage NOTIFY stageChanged)
     Q_PROPERTY(qreal progress READ progress NOTIFY stageChanged)
+    Q_PROPERTY(bool rebootRequired READ rebootRequired NOTIFY safetyChanged)
+    Q_PROPERTY(bool nvidiaKernelWarning READ nvidiaKernelWarning NOTIFY safetyChanged)
+    Q_PROPERTY(bool archNewsBlocked READ archNewsBlocked NOTIFY safetyChanged)
+    Q_PROPERTY(QString archGateText READ archGateText NOTIFY safetyChanged)
+    Q_PROPERTY(QString mirrorStatus READ mirrorStatus NOTIFY mirrorChanged)
+    Q_PROPERTY(QString runningKernel READ runningKernel NOTIFY kernelInfoChanged)
+    Q_PROPERTY(QStringList installedKernels READ installedKernels NOTIFY kernelInfoChanged)
+    Q_PROPERTY(bool snapshotsAvailable READ snapshotsAvailable CONSTANT)
+    Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY filtersChanged)
+    Q_PROPERTY(int minSeverity READ minSeverity WRITE setMinSeverity NOTIFY filtersChanged)
+    Q_PROPERTY(QString sourceFilter READ sourceFilter WRITE setSourceFilter NOTIFY filtersChanged)
+    Q_PROPERTY(QString reclaimableSpace READ reclaimableSpace NOTIFY updatesChanged)
     Q_PROPERTY(QObject *updatesModel READ updatesModelObject CONSTANT)
     Q_PROPERTY(QObject *kernelModel READ kernelModelObject CONSTANT)
 
 public:
-    explicit UpdateController(QObject *parent = nullptr);
+    explicit UpdateController(SettingsController *settings = nullptr,
+                              HistoryController *history = nullptr,
+                              QObject *parent = nullptr);
+
+    void setNewsGateChecker(std::function<bool(QString *)> checker);
 
     bool busy() const { return m_busy; }
     QString statusText() const { return m_statusText; }
@@ -46,20 +61,48 @@ public:
     QString lastChecked() const { return m_lastChecked; }
     QString stage() const { return m_stage; }
     qreal progress() const { return m_progress; }
+    bool rebootRequired() const { return m_rebootRequired; }
+    bool nvidiaKernelWarning() const { return m_nvidiaKernelWarning; }
+    bool archNewsBlocked() const { return m_archNewsBlocked; }
+    QString archGateText() const { return m_archGateText; }
+    QString mirrorStatus() const { return m_mirrorStatus; }
+    QString runningKernel() const { return m_runningKernel; }
+    QStringList installedKernels() const { return m_installedKernels; }
+    bool snapshotsAvailable() const;
+    QString searchText() const;
+    int minSeverity() const;
+    QString sourceFilter() const;
+    QString reclaimableSpace() const { return m_reclaimableSpace; }
     QObject *updatesModelObject() const;
     QObject *kernelModelObject() const;
 
     Q_INVOKABLE void check();
     Q_INVOKABLE void apply();
+    Q_INVOKABLE void applyRepo();
+    Q_INVOKABLE void applyAur();
+    Q_INVOKABLE void applyFlatpak();
     Q_INVOKABLE void dryRun();
     Q_INVOKABLE void downloadOnly();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void setAllSelected(bool selected) { m_model->setAllSelected(selected); }
+    Q_INVOKABLE void setSearchText(const QString &text);
+    Q_INVOKABLE void setMinSeverity(int severity);
+    Q_INVOKABLE void setSourceFilter(const QString &source);
+    Q_INVOKABLE void clearFilters();
+    Q_INVOKABLE void holdPackage(const QString &name);
+    Q_INVOKABLE void unholdPackage(const QString &name);
+    Q_INVOKABLE void checkMirrorHealth();
+    Q_INVOKABLE void acknowledgeArchNews();
+    Q_INVOKABLE void reboot();
+    Q_INVOKABLE void refreshKernelInfo();
+    Q_INVOKABLE void refreshSafety();
+    Q_INVOKABLE void loadCachedCheck();
 
     Q_INVOKABLE QString sourceCommandFor(const QString &source) const;
     Q_INVOKABLE int sourceCountFor(const QString &source) const;
     Q_INVOKABLE QString sourceSizeTextFor(const QString &source) const;
     Q_INVOKABLE QString plannedCommands() const;
+    Q_INVOKABLE int criticalCount() const;
 
 signals:
     void busyChanged();
@@ -70,6 +113,11 @@ signals:
     void lineEmitted(const QString &text, const QString &kind);
     void checkFinished();
     void applyFinished(bool ok);
+    void safetyChanged();
+    void mirrorChanged();
+    void kernelInfoChanged();
+    void filtersChanged();
+    void notifyRequested(const QString &title, const QString &body);
 
 private:
     enum class Mode { Apply, DryRun, DownloadOnly };
@@ -78,46 +126,69 @@ private:
     void setStatus(const QString &text, const QString &state);
     void setStage(const QString &stage, qreal progress);
     void emitLine(const QString &text, const QString &kind = QStringLiteral("out"));
+    void updateSafetyFlags();
+    void updateArchGate();
+    void applyHolds();
+    void saveCachedCheck();
+    bool loadCachedCheckData();
+    QString aurProgram() const;
 
     void runStep(const QString &program, const QStringList &args,
                  const QProcessEnvironment &env,
                  std::function<void(int, const QString &)> onDone);
 
-    // Check pipeline stages.
     void checkAur();
     void checkFlatpak();
     void enrich();
+    void fetchAurChangelogs();
     void finalizeCheck();
     void parsePacmanStyle(const QString &out, cachy::Source source);
     void parseFlatpak(const QString &out);
+    void loadFlatpakInstalled();
 
-    // Apply pipeline.
-    void beginRun(Mode mode);
+    void beginRun(Mode mode, cachy::Source only = cachy::Source::Repo, bool onlySet = false);
+    void createSnapshot(std::function<void(bool)> onDone);
     void runNextGroup();
     void finishRun(bool ok);
 
     QString classifyLineKind(const QString &line) const;
     static QString which(const QString &program);
+    QStringList pacmanBandwidthArgs() const;
+    QProcessEnvironment aurEnv() const;
 
+    SettingsController *m_settings;
+    HistoryController *m_history;
     UpdatesModel *m_model;
-    PkgFilterProxy *m_listProxy;
+    UpdateListProxy *m_listProxy;
     PkgFilterProxy *m_kernelProxy;
-    ProcessRunner *m_runner = nullptr;
 
-    QVector<cachy::Pkg> m_collect; // accumulator during a check
+    QVector<cachy::Pkg> m_collect;
     QStringList m_warnings;
     QString m_checkDbPath;
+    QString m_lastChecked;
+    QString m_mirrorStatus = QStringLiteral("Unknown");
+    QString m_runningKernel;
+    QStringList m_installedKernels;
+    QString m_reclaimableSpace;
+    QString m_archGateText;
+    bool m_archNewsBlocked = false;
+    bool m_rebootRequired = false;
+    bool m_nvidiaKernelWarning = false;
 
     bool m_busy = false;
     QString m_statusText = QStringLiteral("Ready.");
     QString m_statusState = QStringLiteral("idle");
-    QString m_lastChecked;
     QString m_stage = QStringLiteral("Idle");
     qreal m_progress = 0.0;
 
-    // Apply run state.
     Mode m_mode = Mode::Apply;
     QVector<cachy::Source> m_runQueue;
     int m_runIndex = 0;
     bool m_running = false;
+    bool m_singleSourceRun = false;
+    cachy::Source m_singleSource = cachy::Source::Repo;
+
+    std::function<bool(QString *)> m_archGateChecker;
+    QHash<QString, QString> m_flatpakInstalled;
+    QHash<QString, QString> m_flatpakKinds;
 };

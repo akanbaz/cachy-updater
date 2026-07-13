@@ -1,5 +1,7 @@
 #include "NewsController.h"
 
+#include "SettingsController.h"
+
 #include <QDateTime>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -279,4 +281,42 @@ void NewsController::finish()
     m_busy = false;
     emit busyChanged();
     emit changed();
+}
+
+bool NewsController::checkArchGate(SettingsController *settings, QString *text)
+{
+    if (!settings || !settings->enableNews())
+        return false;
+
+    QStringList pending;
+    const QDateTime cutoff = QDateTime::currentDateTimeUtc().addDays(-14);
+    for (int i = 0; i < m_model->rowCount(); ++i) {
+        const NewsItem n = m_model->at(i);
+        if (n.source != QLatin1String("Arch"))
+            continue;
+        const QString key = n.title.trimmed();
+        if (key.isEmpty() || settings->isArchNewsAcknowledged(key))
+            continue;
+        QDateTime dt = QDateTime::fromString(n.published, QStringLiteral("yyyy-MM-dd"));
+        if (!dt.isValid() || dt < cutoff)
+            continue;
+        pending << QStringLiteral("• %1 (%2)").arg(n.title, n.published);
+    }
+    if (pending.isEmpty())
+        return false;
+    if (text)
+        *text = QStringLiteral("Review recent Arch news before updating:\n")
+                + pending.join(QLatin1Char('\n'));
+    return true;
+}
+
+void NewsController::acknowledgeArchGate(SettingsController *settings)
+{
+    if (!settings)
+        return;
+    for (int i = 0; i < m_model->rowCount(); ++i) {
+        const NewsItem n = m_model->at(i);
+        if (n.source == QLatin1String("Arch"))
+            settings->acknowledgeArchNews(n.title.trimmed());
+    }
 }

@@ -50,12 +50,13 @@ Item {
 
             QQC2.CheckBox {
                 checked: model.selected
+                enabled: !model.held
                 onToggled: model.selected = checked
             }
 
             QQC2.Label {
                 text: model.name
-                color: Theme.text
+                color: model.held ? Theme.textMuted : Theme.text
                 font.family: Theme.monoFamily
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
@@ -103,6 +104,26 @@ Item {
                 Layout.minimumWidth: 64
             }
 
+            QQC2.Label {
+                visible: model.source === "flatpak" && model.flatpakKind.length > 0
+                text: model.flatpakKind
+                color: Theme.textFaint
+                font.pixelSize: 10
+            }
+
+            QQC2.ToolButton {
+                flat: true
+                icon.name: model.held ? "object-unlocked" : "object-locked"
+                onClicked: {
+                    if (model.held)
+                        Updater.unholdPackage(model.name)
+                    else
+                        Updater.holdPackage(model.name)
+                }
+                QQC2.ToolTip.text: model.held ? "Unhold package" : "Hold package"
+                QQC2.ToolTip.visible: hovered
+            }
+
             QQC2.ToolButton {
                 flat: true
                 icon.name: delegate.expanded ? "go-down" : "go-next"
@@ -120,7 +141,7 @@ Item {
             Layout.leftMargin: Theme.spacingLarge + Theme.spacingSmall
             Layout.rightMargin: Theme.spacingSmall
             Layout.bottomMargin: Theme.spacingSmall
-            text: model.summary
+            text: model.changelog.length > 0 ? model.changelog : model.summary
             color: Theme.textDim
             wrapMode: Text.WordWrap
             font.family: Theme.sansFamily

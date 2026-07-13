@@ -6,11 +6,74 @@ import org.cachyos.updater
 import "../components"
 
 ColumnLayout {
-    id: page
     spacing: Theme.spacing
 
+    Banner { text: Updater.warningText }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingSmall
+
+        QQC2.TextField {
+            id: searchField
+            Layout.fillWidth: true
+            placeholderText: "Search packages\u2026"
+            text: Updater.searchText
+            onTextChanged: Updater.searchText = text
+        }
+
+        QQC2.ComboBox {
+            id: severityFilter
+            model: ["All severities", "Notice+", "Notable+", "Important only"]
+            onActivated: Updater.minSeverity = index
+        }
+
+        QQC2.ComboBox {
+            id: sourceFilter
+            model: ["All sources", "repo", "aur", "flatpak"]
+            onActivated: Updater.sourceFilter = index === 0 ? "" : model[index]
+        }
+
+        QQC2.Button {
+            text: "Clear"
+            onClicked: Updater.clearFilters()
+        }
+    }
+
     Banner {
-        text: Updater.warningText
+        visible: Updater.archNewsBlocked
+        text: Updater.archGateText
+        severity: "warn"
+        closable: false
+    }
+
+    RowLayout {
+        visible: Updater.archNewsBlocked
+        QQC2.Button {
+            text: "I've read the Arch news"
+            onClicked: { News.acknowledgeArchGate(Settings); Updater.acknowledgeArchNews() }
+        }
+    }
+
+    Banner {
+        visible: Updater.nvidiaKernelWarning
+        text: "NVIDIA and kernel updates are selected together \u2014 DKMS will rebuild on reboot."
+        severity: "warn"
+    }
+
+    Banner {
+        visible: Updater.rebootRequired
+        text: "A reboot is required after these updates finish."
+        severity: "info"
+    }
+
+    RowLayout {
+        visible: Updater.rebootRequired
+        QQC2.Button {
+            text: "Reboot now"
+            icon.name: "system-reboot"
+            onClicked: Updater.reboot()
+        }
     }
 
     RowLayout {
@@ -28,12 +91,45 @@ ColumnLayout {
                   + "   \u00b7   " + Updater.downloadText + " download"
                   + "   \u00b7   " + Updater.sourceCount
                   + (Updater.sourceCount === 1 ? " source" : " sources")
+                  + (Updater.mirrorStatus.length > 0 ? "   \u00b7   mirrors: " + Updater.mirrorStatus : "")
+        }
+
+        QQC2.Button {
+            text: "Mirror check"
+            icon.name: "network-wireless"
+            enabled: !Updater.busy
+            onClicked: Updater.checkMirrorHealth()
         }
 
         QQC2.CheckBox {
             text: "Select all"
             checked: Updater.selectedCount === Updater.packageCount && Updater.packageCount > 0
             onToggled: Updater.setAllSelected(checked)
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        visible: Updater.installedKernels.length > 0
+        spacing: Theme.spacingSmall
+        QQC2.Label {
+            text: "Running: " + Updater.runningKernel
+            color: Theme.cyan
+            font.family: Theme.monoFamily
+            font.pixelSize: 12
+        }
+        QQC2.Label {
+            text: "Installed: " + Updater.installedKernels.join(", ")
+            color: Theme.textMuted
+            font.family: Theme.monoFamily
+            font.pixelSize: 12
+            Layout.fillWidth: true
+            elide: Text.ElideRight
+        }
+        QQC2.Button {
+            text: "Refresh"
+            flat: true
+            onClicked: Updater.refreshKernelInfo()
         }
     }
 
@@ -65,6 +161,7 @@ ColumnLayout {
             text: Updater.statusState === "uptodate" ? "System is up to date" : "No updates yet"
             explanation: Updater.statusState === "uptodate"
                 ? "Everything is current. Last checked " + Updater.lastChecked + "."
+                : Settings.offlineMode ? "Offline mode \u2014 showing cached results."
                 : "Press Refresh to check for package updates."
         }
     }

@@ -4,18 +4,23 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.cachyos.updater
 
-// Warning / notice banner. Warm colors are reserved for exactly this purpose.
 Rectangle {
     id: banner
 
     property string text: ""
-    property string iconName: "dialog-warning"
+    property string iconName: severity === "info" ? "dialog-information" : "dialog-warning"
+    property string severity: "warn"
     property bool dismissed: false
+    property bool closable: true
+
+    readonly property color bgColor: severity === "info" ? Theme.cyanBg : Theme.warnBg
+    readonly property color borderColor: severity === "info" ? Theme.cyan : Theme.warnBorder
+    readonly property color textColor: severity === "info" ? Theme.cyan : Theme.warnText
 
     Layout.fillWidth: true
     visible: text.length > 0 && !dismissed
     implicitHeight: visible ? row.implicitHeight + Theme.spacing : 0
-    color: Theme.warnBg
+    color: bgColor
     radius: Theme.radiusSmall
 
     Rectangle {
@@ -24,7 +29,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: 3
         radius: 2
-        color: Theme.warnBorder
+        color: borderColor
     }
 
     RowLayout {
@@ -38,16 +43,17 @@ Rectangle {
             source: banner.iconName
             implicitWidth: 18
             implicitHeight: 18
-            color: Theme.warnText
+            color: textColor
         }
         QQC2.Label {
             Layout.fillWidth: true
             text: banner.text
-            color: Theme.warnText
+            color: textColor
             wrapMode: Text.WordWrap
             font.family: Theme.sansFamily
         }
         QQC2.ToolButton {
+            visible: closable
             icon.name: "dialog-close"
             flat: true
             onClicked: banner.dismissed = true

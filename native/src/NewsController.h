@@ -5,6 +5,7 @@
 #include <QVariantMap>
 #include <QVector>
 
+class SettingsController;
 class QNetworkAccessManager;
 class QNetworkReply;
 
@@ -60,6 +61,8 @@ public:
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE QVariantMap itemAt(int row) const;
+    Q_INVOKABLE bool checkArchGate(SettingsController *settings, QString *text);
+    Q_INVOKABLE void acknowledgeArchGate(SettingsController *settings);
 
 signals:
     void busyChanged();

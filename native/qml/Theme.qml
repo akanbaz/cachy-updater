@@ -22,6 +22,7 @@ QtObject {
     readonly property color cyanHover: "#1AC7D1"
     readonly property color cyanPressed: "#009AA4"
     readonly property color cyanInk: "#062A2E"
+    readonly property color cyanBg: "#0D2A2E"
 
     // Text
     readonly property color text: "#E7E9EB"

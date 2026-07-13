@@ -56,6 +56,22 @@ Rectangle {
                 }
 
                 Rectangle {
+                    visible: model.runningKernel
+                    radius: Theme.radiusSmall
+                    color: Theme.ok
+                    implicitWidth: runLbl.implicitWidth + 6
+                    implicitHeight: runLbl.implicitHeight + 2
+                    QQC2.Label {
+                        id: runLbl
+                        anchors.centerIn: parent
+                        text: "RUNNING"
+                        color: Theme.bg
+                        font.pixelSize: 8
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                Rectangle {
                     radius: Theme.radiusSmall
                     color: "transparent"
                     border.width: 1
