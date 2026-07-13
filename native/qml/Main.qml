@@ -253,54 +253,32 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            Item {
-                id: tabBody
-                Layout.fillWidth: true
-                Layout.fillHeight: root.currentTab !== 0
-                Layout.preferredHeight: root.currentTab === 0
-                    ? updatesPageTab.implicitHeight + Theme.spacingSmall * 2
-                    : -1
-                Layout.minimumHeight: 0
-
-                StackLayout {
-                    id: tabStack
-                    anchors.fill: parent
-                    anchors.margins: Theme.spacingSmall
-                    currentIndex: root.currentTab
-
-                    UpdatesPage { id: updatesPageTab }
-                    NewsPage {}
-                    CleanupPage {}
-                    FirmwarePage {}
-                    HistoryPage {}
-                    SettingsPage {}
-                }
-            }
-
             ColumnLayout {
-                id: bottomChrome
+                visible: root.currentTab === 0
                 Layout.fillWidth: true
-                visible: root.currentTab === 0 || root.currentTab === 2
+                Layout.fillHeight: true
                 spacing: 0
+
+                UpdatesPage {
+                    id: updatesPageTab
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.spacingSmall
+                    Layout.rightMargin: Theme.spacingSmall
+                    Layout.topMargin: Theme.spacingSmall
+                }
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
 
                 TerminalPanel {
-                    controller: root.currentTab === 2 ? Maintain : Updater
+                    controller: Updater
                     radius: 0
                     edgeMargin: Theme.spacingSmall
                 }
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 1
-                    visible: root.currentTab === 0
-                    color: Theme.border
-                }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    visible: root.currentTab === 0
                     color: Theme.deepBg
                     implicitHeight: footerRow.implicitHeight + Theme.spacingSmall
 
@@ -381,12 +359,59 @@ Kirigami.ApplicationWindow {
                         }
                     }
                 }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: 0
+                }
+            }
+
+            ColumnLayout {
+                visible: root.currentTab === 2
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: 0
+                    CleanupPage {
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingSmall
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
+
+                TerminalPanel {
+                    controller: Maintain
+                    radius: 0
+                    edgeMargin: Theme.spacingSmall
+                }
             }
 
             Item {
+                visible: root.currentTab === 1 || root.currentTab === 3
+                          || root.currentTab === 4 || root.currentTab === 5
                 Layout.fillWidth: true
-                Layout.fillHeight: root.currentTab === 0
+                Layout.fillHeight: true
                 Layout.minimumHeight: 0
+
+                StackLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingSmall
+                    currentIndex: root.currentTab === 1 ? 0
+                                  : root.currentTab === 3 ? 1
+                                  : root.currentTab === 4 ? 2
+                                  : 3
+
+                    NewsPage {}
+                    FirmwarePage {}
+                    HistoryPage {}
+                    SettingsPage {}
+                }
             }
         }
     }
