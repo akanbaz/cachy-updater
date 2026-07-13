@@ -1,0 +1,41 @@
+# Maintainer: akanbaz
+pkgname=cachy-updater
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="GUI system updater for CachyOS with change summaries, news, and cleanup"
+arch=('any')
+url="https://github.com/akanbaz/cachy-updater"
+license=('GPL-3.0-or-later')
+depends=(
+  'python'
+  'python-pyqt6'
+  'pacman'
+  'pacman-contrib'
+  'expac'
+  'polkit'
+  'curl'
+)
+optdepends=(
+  'paru: AUR package updates'
+  'flatpak: Flatpak application updates'
+  'libnotify: richer desktop notifications'
+)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/akanbaz/cachy-updater/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+
+  install -d "$pkgdir/usr/lib/$pkgname"
+  cp -a cachy_updater "$pkgdir/usr/lib/$pkgname/"
+
+  install -Dm755 /dev/stdin "$pkgdir/usr/bin/cachy-updater" <<'EOF'
+#!/bin/bash
+set -euo pipefail
+export PYTHONPATH="/usr/lib/cachy-updater${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m cachy_updater "$@"
+EOF
+
+  install -Dm644 resources/io.github.cachy-updater.desktop \
+    "$pkgdir/usr/share/applications/io.github.cachy-updater.desktop"
+}
