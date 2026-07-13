@@ -271,9 +271,10 @@ Kirigami.ApplicationWindow {
                 }
 
                 ColumnLayout {
-                    anchors.top: updatesPageTab.bottom
+                    id: updatesBottomChrome
                     anchors.left: parent.left
                     anchors.right: parent.right
+                    anchors.bottom: parent.bottom
                     width: parent.width
                     spacing: 0
 
