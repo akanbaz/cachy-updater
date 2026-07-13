@@ -122,10 +122,4 @@ ColumnLayout {
             }
         }
     }
-
-    Item { Layout.fillHeight: true }
-
-    TerminalPanel {
-        controller: Maintain
-    }
 }

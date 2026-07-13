@@ -18,9 +18,12 @@ Kirigami.ApplicationWindow {
 
     property int currentTab: StartTab
     readonly property var tabs: [
-        { name: "Updates", subtitle: "Repo, AUR, and Flatpak \u2014 with clear change summaries." },
-        { name: "News", subtitle: "Arch and CachyOS announcements." },
-        { name: "Cleanup", subtitle: "Remove orphaned packages and clear the package cache." }
+        { name: "Updates", icon: "system-software-update",
+          subtitle: "Repo, AUR, and Flatpak \u2014 with clear change summaries." },
+        { name: "News", icon: "news-subscribe",
+          subtitle: "Arch and CachyOS announcements." },
+        { name: "Cleanup", icon: "edit-clear-all",
+          subtitle: "Remove orphaned packages and clear the package cache." }
     ]
 
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
@@ -68,51 +71,70 @@ Kirigami.ApplicationWindow {
                     anchors.rightMargin: Theme.spacingLarge
                     spacing: 2
 
-                    // Title line + status readout (centered on the title).
+                    // Section icon + title + status readout.
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: Theme.spacingSmall
+                        spacing: Theme.spacing
 
-                        QQC2.Label {
-                            Layout.fillWidth: true
-                            text: root.tabs[root.currentTab].name
-                            color: Theme.text
-                            font.family: Theme.sansFamily
-                            font.pixelSize: 26
-                            font.weight: Font.Bold
-                        }
-
-                        Rectangle {
-                            visible: root.currentTab === 0
-                            implicitWidth: 8; implicitHeight: 8; radius: 4
-                            color: root.statusColor()
-                            opacity: Updater.busy ? 0.5 : 1.0
-                            Layout.alignment: Qt.AlignVCenter
-                        }
-                        QQC2.Label {
-                            visible: root.currentTab === 0
-                            text: Updater.statusText
+                        Kirigami.Icon {
+                            source: root.tabs[root.currentTab].icon
+                            implicitWidth: 32
+                            implicitHeight: 32
                             color: Theme.cyan
-                            font.family: Theme.sansFamily
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
-                            Layout.alignment: Qt.AlignVCenter
+                            Layout.alignment: Qt.AlignTop
+                            Layout.topMargin: 4
                         }
-                        QQC2.BusyIndicator {
-                            visible: Updater.busy
-                            running: Updater.busy
-                            implicitWidth: 18
-                            implicitHeight: 18
-                            Layout.alignment: Qt.AlignVCenter
-                        }
-                    }
 
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        text: root.tabs[root.currentTab].subtitle
-                        color: Theme.textMuted
-                        font.family: Theme.sansFamily
-                        font.pixelSize: 13
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSmall
+
+                                QQC2.Label {
+                                    Layout.fillWidth: true
+                                    text: root.tabs[root.currentTab].name
+                                    color: Theme.text
+                                    font.family: Theme.sansFamily
+                                    font.pixelSize: 26
+                                    font.weight: Font.Bold
+                                }
+
+                                Rectangle {
+                                    visible: root.currentTab === 0
+                                    implicitWidth: 8; implicitHeight: 8; radius: 4
+                                    color: root.statusColor()
+                                    opacity: Updater.busy ? 0.5 : 1.0
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+                                QQC2.Label {
+                                    visible: root.currentTab === 0
+                                    text: Updater.statusText
+                                    color: Theme.cyan
+                                    font.family: Theme.sansFamily
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+                                QQC2.BusyIndicator {
+                                    visible: Updater.busy
+                                    running: Updater.busy
+                                    implicitWidth: 18
+                                    implicitHeight: 18
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+                            }
+
+                            QQC2.Label {
+                                Layout.fillWidth: true
+                                text: root.tabs[root.currentTab].subtitle
+                                color: Theme.textMuted
+                                font.family: Theme.sansFamily
+                                font.pixelSize: 13
+                            }
+                        }
                     }
                 }
             }
@@ -153,7 +175,15 @@ Kirigami.ApplicationWindow {
 
                             contentItem: RowLayout {
                                 id: tabContent
-                                spacing: Theme.spacingSmall
+                                spacing: 4
+
+                                Kirigami.Icon {
+                                    source: modelData.icon
+                                    implicitWidth: 16
+                                    implicitHeight: 16
+                                    color: tabButton.active ? Theme.cyan : Theme.textMuted
+                                    opacity: tabButton.active ? 1.0 : 0.75
+                                }
 
                                 QQC2.Label {
                                     text: modelData.name
@@ -221,7 +251,7 @@ Kirigami.ApplicationWindow {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    visible: root.currentTab === 0
+                    visible: root.currentTab === 0 || root.currentTab === 2
                     spacing: 0
                     width: parent.width
 
@@ -229,15 +259,21 @@ Kirigami.ApplicationWindow {
 
                     TerminalPanel {
                         id: terminal
-                        controller: Updater
+                        controller: root.currentTab === 2 ? Maintain : Updater
                         radius: 0
                         edgeMargin: Theme.spacingLarge
                     }
 
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 1
+                        visible: root.currentTab === 0
+                        color: Theme.border
+                    }
 
                     Rectangle {
                         Layout.fillWidth: true
+                        visible: root.currentTab === 0
                         color: Theme.deepBg
                         implicitHeight: footerRow.implicitHeight + Theme.spacing
 
