@@ -1,58 +1,64 @@
-# Cachy Updater
+# CachyOS Updater
 
-A personal GUI system updater for CachyOS — close in spirit to `cachy-update`, focused on clarity and stability.
+A fast, native **C++ / Kirigami** system updater for CachyOS — lightweight,
+single-binary, and styled to the CachyOS design language.
 
 **Repo:** https://github.com/akanbaz/cachy-updater
 
 ## Features
 
-- Native PyQt6 UI with per-package **change summaries**
-- **Repo** (`checkupdates` / `pacman`), **AUR** (`paru`), and **Flatpak** updates
-- **News** tab (Arch RSS + best-effort Cachy feeds)
-- **Orphans** removal and **pacman cache** cleanup
-- **System tray** with periodic checks and notifications
+- Native **Kirigami / Qt Quick** UI (no Python, no web stack)
+- Grouped **Repo** (`checkupdates` / `pacman`), **AUR** (`paru`), and **Flatpak** updates
+- **Kernel updates** pulled out distinctly with a reboot hint
+- Per-package **severity badges** and expandable **change summaries**
+- Exact commands shown, with a collapsible **Terminal** panel (real-time output, Copy Log)
+- **Apply / Dry Run / Download Only**, full `pacman -Syu` with a partial-upgrade guard (`--ignore`)
+- **News** tab (Arch RSS + best-effort CachyOS feeds via `QNetworkAccessManager` — no curl)
+- **Cleanup** tab: orphan removal (`pacman -Rns`) and cache cleanup (`paccache`)
 - Polkit (`pkexec`) for privileged actions
-- Full `pacman -Syu` when all repo updates are selected (avoids partial upgrades)
 
-## Requirements
+## Runtime dependencies
 
-```bash
-sudo pacman -S --needed python python-pyqt6 pacman-contrib expac polkit curl
+Present on a stock CachyOS Plasma install:
+
+```
+qt6-base qt6-declarative kirigami qqc2-desktop-style breeze-icons pacman polkit
 ```
 
-Optional: `paru` (AUR), `flatpak` (Flatpak apps).
+Optional (auto-detected): `paru` (AUR), `pacman-contrib` (`checkupdates`/`paccache`),
+`expac` (fast metadata), `flatpak`.
 
-## Run
-
-```bash
-cachy-updater          # window + tray
-cachy-updater --tray   # tray only
-```
-
-Or from the project tree:
+## Build
 
 ```bash
-./run.sh
-./run.sh --tray
+cd native
+cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/cachyos-updater
 ```
 
-## Packaging / CachyOS repos
+Build requirements: `cmake`, `ninja`, `qt6-base`, `qt6-declarative`, a C++20 compiler.
 
-Yes — this app is **capable** of one-click install once packaged:
+## Install / package
 
 ```bash
-sudo pacman -S cachy-updater
+cd native && cmake --install build            # or via the PKGBUILD:
+cd packaging && makepkg -si                    # after adjusting source=
 ```
 
-That is not automatic. CachyOS repo inclusion needs:
+Everything (QML, icons, assets) is embedded in the single ELF via the Qt
+Resource System; only the shared Qt6/Kirigami libraries already on the system
+are linked at runtime. No bundled frameworks, no runtime downloads, no daemon.
 
-1. A public GitHub repo + tagged releases  
-2. A proper `PKGBUILD` (see `packaging/PKGBUILD`)  
-3. Review/acceptance by CachyOS packagers (usually via their PKGBUILDS repo)  
-4. Ongoing maintenance (updates, fixes)
+## Architecture
 
-Until then you can:
+Thin QML/Kirigami views bind to C++ `QObject` controllers and a
+`QAbstractListModel`. All external work runs through one async `ProcessRunner`
+(`QProcess`) — the UI never blocks and there are no worker threads.
 
-- run from source (`cachy-updater` / `./run.sh`)
-- or build a local package with `makepkg` after adjusting the PKGBUILD `source=`
-- or publish to the AUR for `paru -S cachy-updater` one-click install
+```
+native/
+  src/    ProcessRunner, UpdateController, UpdatesModel, Classifier,
+          NewsController, MaintainController, main.cpp
+  qml/    Main.qml, Theme.qml, pages/, components/
+```

@@ -1,0 +1,118 @@
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls as QQC2
+import org.kde.kirigami as Kirigami
+import org.cachyos.updater
+
+// One package row: checkbox, name, version transition, severity badge, size,
+// and an expandable change-summary. Uses the injected `model` context so the
+// checkbox writes back through the model (QAbstractListModel::setData).
+Item {
+    id: delegate
+
+    property bool expanded: false
+
+    width: ListView.view ? ListView.view.width : implicitWidth
+    implicitHeight: col.implicitHeight + Theme.spacingSmall
+
+    function badgeColor() {
+        if (model.severity >= 3) return Theme.warnBorder
+        if (model.severity === 2) return Theme.kernelBorder
+        return Theme.borderStrong
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.topMargin: 1
+        anchors.bottomMargin: 1
+        radius: Theme.radiusSmall
+        color: hover.hovered ? Theme.rowHover : "transparent"
+    }
+
+    HoverHandler { id: hover }
+
+    ColumnLayout {
+        id: col
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 2
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.spacingSmall
+            Layout.rightMargin: Theme.spacingSmall
+            spacing: Theme.spacingSmall
+
+            QQC2.CheckBox {
+                checked: model.selected
+                onToggled: model.selected = checked
+            }
+
+            QQC2.Label {
+                text: model.name
+                color: Theme.text
+                font.family: Theme.monoFamily
+                font.pixelSize: 13
+            }
+
+            QQC2.Label {
+                text: model.oldVersion + "  \u2192  " + model.newVersion
+                color: Theme.textMuted
+                font.family: Theme.monoFamily
+                font.pixelSize: 12
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+            }
+
+            Rectangle {
+                visible: model.severityLabel.length > 0
+                radius: Theme.radiusSmall
+                color: "transparent"
+                border.width: 1
+                border.color: delegate.badgeColor()
+                implicitWidth: badge.implicitWidth + Theme.spacingSmall
+                implicitHeight: badge.implicitHeight + 3
+                QQC2.Label {
+                    id: badge
+                    anchors.centerIn: parent
+                    text: model.severityLabel
+                    color: delegate.badgeColor()
+                    font.family: Theme.sansFamily
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
+                }
+            }
+
+            QQC2.Label {
+                text: model.sizeText
+                color: Theme.textDim
+                font.family: Theme.sansFamily
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignRight
+                Layout.minimumWidth: 64
+            }
+
+            QQC2.ToolButton {
+                flat: true
+                icon.name: delegate.expanded ? "go-up" : "go-down"
+                implicitWidth: 26
+                implicitHeight: 26
+                onClicked: delegate.expanded = !delegate.expanded
+            }
+        }
+
+        QQC2.Label {
+            visible: delegate.expanded
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.spacingLarge + Theme.spacingSmall
+            Layout.rightMargin: Theme.spacingSmall
+            Layout.bottomMargin: Theme.spacingSmall
+            text: model.summary
+            color: Theme.textDim
+            wrapMode: Text.WordWrap
+            font.family: Theme.sansFamily
+            font.pixelSize: 12
+        }
+    }
+}

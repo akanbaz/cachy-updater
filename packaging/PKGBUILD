@@ -1,41 +1,48 @@
 # Maintainer: akanbaz
-pkgname=cachy-updater
-pkgver=0.2.0
+pkgname=cachyos-updater
+pkgver=0.3.0
 pkgrel=1
-pkgdesc="GUI system updater for CachyOS with change summaries, news, and cleanup"
-arch=('any')
+pkgdesc="Fast, native Kirigami system updater for CachyOS (updates, news, cleanup)"
+arch=('x86_64')
 url="https://github.com/akanbaz/cachy-updater"
 license=('GPL-3.0-or-later')
 depends=(
-  'python'
-  'python-pyqt6'
+  'qt6-base'
+  'qt6-declarative'
+  'kirigami'
+  'qqc2-desktop-style'
+  'breeze-icons'
   'pacman'
-  'pacman-contrib'
-  'expac'
   'polkit'
-  'curl'
+)
+makedepends=(
+  'cmake'
+  'ninja'
+  'qt6-base'
+  'qt6-declarative'
 )
 optdepends=(
   'paru: AUR package updates'
+  'pacman-contrib: repo update checks (checkupdates) and cache cleanup (paccache)'
+  'expac: fast package metadata (sizes, groups, descriptions)'
   'flatpak: Flatpak application updates'
-  'libnotify: richer desktop notifications'
+  'reflector: mirror ranking (future mirror-health card)'
 )
+conflicts=('cachy-updater')
+replaces=('cachy-updater')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/akanbaz/cachy-updater/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
+build() {
+  cd "$srcdir/cachy-updater-$pkgver/native"
+  cmake -B build -S . \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
 package() {
-  cd "$srcdir/$pkgname-$pkgver"
-
-  install -d "$pkgdir/usr/lib/$pkgname"
-  cp -a cachy_updater "$pkgdir/usr/lib/$pkgname/"
-
-  install -Dm755 /dev/stdin "$pkgdir/usr/bin/cachy-updater" <<'EOF'
-#!/bin/bash
-set -euo pipefail
-export PYTHONPATH="/usr/lib/cachy-updater${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 -m cachy_updater "$@"
-EOF
-
-  install -Dm644 resources/io.github.cachy-updater.desktop \
-    "$pkgdir/usr/share/applications/io.github.cachy-updater.desktop"
+  cd "$srcdir/cachy-updater-$pkgver/native"
+  DESTDIR="$pkgdir" cmake --install build
 }

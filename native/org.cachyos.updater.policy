@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>CachyOS Updater</vendor>
+  <vendor_url>https://cachyos.org</vendor_url>
+
+  <!--
+    Optional. The application applies updates by invoking `pkexec pacman ...`,
+    which already works out of the box using the default
+    org.freedesktop.policykit.exec action (prompts for the admin password).
+
+    This action is provided for administrators who want to relax or tighten
+    that behaviour (e.g. keep the authorization for a few minutes). It is not
+    required for the app to function.
+  -->
+  <action id="org.cachyos.updater.apply">
+    <description>Apply system package updates</description>
+    <message>Authentication is required to update system packages</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/pacman</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+</policyconfig>

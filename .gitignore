@@ -1,11 +1,23 @@
+# Build output
+build/
+native/build/
+native/stage/
+dist/
+
+# Local build tooling (pip-provided cmake/ninja venv)
+.buildenv/
+.venv/
+venv/
+
+# Dev-only screenshots produced by CACHYOS_SHOT
+native/*.png
+
+# Python leftovers (legacy)
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
-venv/
-dist/
-build/
 .pytest_cache/
 .mypy_cache/
+
 *.lock
 .DS_Store
