@@ -36,7 +36,7 @@ ColumnLayout {
             width: ListView.view.width
             padding: Theme.spacingSmall
             RowLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
                 spacing: Theme.spacingSmall
                 Rectangle {
                     width: 8; height: 8; radius: 4
