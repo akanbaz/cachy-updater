@@ -10,36 +10,6 @@ ColumnLayout {
 
     Banner { text: Updater.warningText }
 
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.spacingSmall
-
-        QQC2.TextField {
-            id: searchField
-            Layout.fillWidth: true
-            placeholderText: "Search packages\u2026"
-            text: Updater.searchText
-            onTextChanged: Updater.searchText = text
-        }
-
-        QQC2.ComboBox {
-            id: severityFilter
-            model: ["All severities", "Notice+", "Notable+", "Important only"]
-            onActivated: Updater.minSeverity = index
-        }
-
-        QQC2.ComboBox {
-            id: sourceFilter
-            model: ["All sources", "repo", "aur", "flatpak"]
-            onActivated: Updater.sourceFilter = index === 0 ? "" : model[index]
-        }
-
-        QQC2.Button {
-            text: "Clear"
-            onClicked: Updater.clearFilters()
-        }
-    }
-
     Banner {
         visible: Updater.archNewsBlocked
         text: Updater.archGateText
