@@ -8,6 +8,13 @@ import "../components"
 ColumnLayout {
     id: updatesRoot
     spacing: Theme.spacingSmall
+    width: parent ? parent.width : implicitWidth
+    implicitHeight: chromeColumn.implicitHeight + list.effectiveHeight + Theme.spacingSmall
+
+    ColumnLayout {
+        id: chromeColumn
+        width: parent.width
+        spacing: Theme.spacingSmall
 
     Banner { text: Updater.warningText }
 
@@ -81,15 +88,18 @@ ColumnLayout {
             onToggled: Updater.setAllSelected(checked)
         }
     }
+    }
 
     ListView {
         id: list
         Layout.fillWidth: true
+        Layout.preferredHeight: effectiveHeight
         readonly property int listCap: 420
-        Layout.preferredHeight: Updater.packageCount === 0
+        readonly property real effectiveHeight: Updater.packageCount === 0
             ? (Updater.busy ? 0 : 140)
             : Math.min(contentHeight, listCap)
-        Layout.maximumHeight: Layout.preferredHeight
+        implicitHeight: effectiveHeight
+        height: effectiveHeight
         clip: true
         spacing: 0
         model: Updater.updatesModel
