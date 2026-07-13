@@ -55,6 +55,15 @@ qt_add_qml_module(cachyos-updater
         qml/components/TerminalPanel.qml
     RESOURCES
         assets/logo.svg
+        assets/tray-uptodate.svg
+        assets/tray-updates.svg
+)
+
+qt_add_resources(cachyos-updater tray_icons
+    PREFIX /tray
+    FILES
+        assets/tray-uptodate.svg
+        assets/tray-updates.svg
 )
 
 target_link_libraries(cachyos-updater PRIVATE
@@ -86,6 +95,14 @@ install(FILES org.cachyos.updater-tray.service
 install(FILES assets/logo.svg
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps
     RENAME org.cachyos.updater.svg)
+
+install(FILES assets/tray-uptodate.svg
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status
+    RENAME org.cachyos.updater-tray.svg)
+
+install(FILES assets/tray-updates.svg
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status
+    RENAME org.cachyos.updater-tray-updates.svg)
 
 # Optional polkit action (see the file for details).
 install(FILES org.cachyos.updater.policy

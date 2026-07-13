@@ -2,11 +2,35 @@
 #include "UpdateController.h"
 
 #include <QApplication>
+#include <QFile>
 #include <QIcon>
 #include <QMenu>
 #include <QProcess>
 #include <QSystemTrayIcon>
 #include <QTimer>
+
+namespace {
+
+QIcon loadTrayIcon(const QString &resourceName, const QString &themeName)
+{
+    const QString resourcePath = QStringLiteral(":/tray/assets/%1").arg(resourceName);
+    if (QFile::exists(resourcePath)) {
+        QIcon icon(resourcePath);
+        if (!icon.isNull())
+            return icon;
+    }
+
+    QIcon themed = QIcon::fromTheme(themeName);
+    if (!themed.isNull())
+        return themed;
+
+    // Last resort: legacy CachyOS tray icons if still installed.
+    if (resourceName == QLatin1String("tray-updates.svg"))
+        return QIcon::fromTheme(QStringLiteral("cachy-update_updates-available-blue"));
+    return QIcon::fromTheme(QStringLiteral("cachy-update-blue"));
+}
+
+} // namespace
 
 TrayController::TrayController(UpdateController *updater, QObject *parent)
     : QObject(parent)
@@ -24,6 +48,7 @@ TrayController::TrayController(UpdateController *updater, QObject *parent)
 
     connect(m_updater, &UpdateController::updatesChanged, this, &TrayController::onUpdatesChanged);
     connect(m_updater, &UpdateController::checkFinished, this, &TrayController::onCheckFinished);
+    connect(m_updater, &UpdateController::busyChanged, this, &TrayController::updateAppearance);
 
     m_timer = new QTimer(this);
     m_timer->setInterval(30 * 60 * 1000);
@@ -92,19 +117,22 @@ void TrayController::onCheckFinished()
 void TrayController::updateAppearance()
 {
     const int count = m_updater->packageCount();
+    const bool busy = m_updater->busy();
     QIcon icon;
     QString tip;
 
-    if (count > 0) {
-        icon = QIcon::fromTheme(QStringLiteral("software-update-available"));
-        if (icon.isNull())
-            icon = QIcon::fromTheme(QStringLiteral("system-software-update"));
+    if (busy) {
+        icon = loadTrayIcon(QStringLiteral("tray-uptodate.svg"),
+                            QStringLiteral("org.cachyos.updater-tray"));
+        tip = QStringLiteral("Cachy Updater — checking for updates\u2026");
+    } else if (count > 0) {
+        icon = loadTrayIcon(QStringLiteral("tray-updates.svg"),
+                            QStringLiteral("org.cachyos.updater-tray-updates"));
         tip = count == 1 ? QStringLiteral("Cachy Updater — 1 update available")
                          : QStringLiteral("Cachy Updater — %1 updates available").arg(count);
     } else {
-        icon = QIcon::fromTheme(QStringLiteral("update-none"));
-        if (icon.isNull())
-            icon = QIcon::fromTheme(QStringLiteral("system-software-update"));
+        icon = loadTrayIcon(QStringLiteral("tray-uptodate.svg"),
+                            QStringLiteral("org.cachyos.updater-tray"));
         tip = QStringLiteral("Cachy Updater — up to date");
     }
 
