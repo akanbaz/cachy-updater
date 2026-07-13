@@ -23,58 +23,77 @@ Rectangle {
         QQC2.CheckBox {
             checked: model.selected
             onToggled: model.selected = checked
-        }
-
-        Kirigami.Icon {
-            source: "system-run"
-            implicitWidth: 28
-            implicitHeight: 28
+            Layout.alignment: Qt.AlignTop
         }
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: 3
 
             RowLayout {
+                Layout.fillWidth: true
                 spacing: Theme.spacingSmall
+
                 QQC2.Label {
-                    text: "Kernel update"
+                    text: model.name
                     color: Theme.text
                     font.family: Theme.sansFamily
                     font.weight: Font.DemiBold
-                    font.pixelSize: 13
+                    font.pixelSize: 14
                 }
+                QQC2.Label {
+                    text: model.oldVersion + "  \u2192  "
+                    color: Theme.textDim
+                    font.family: Theme.monoFamily
+                    font.pixelSize: 12
+                }
+                QQC2.Label {
+                    text: model.newVersion
+                    color: Theme.cyan
+                    font.family: Theme.monoFamily
+                    font.pixelSize: 12
+                    Layout.leftMargin: -Theme.spacingSmall
+                }
+
                 Rectangle {
                     radius: Theme.radiusSmall
-                    color: Theme.cyan
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Theme.cyan
                     implicitWidth: hint.implicitWidth + Theme.spacingSmall
                     implicitHeight: hint.implicitHeight + 3
                     QQC2.Label {
                         id: hint
                         anchors.centerIn: parent
-                        text: "REBOOT AFTER"
-                        color: Theme.cyanInk
+                        text: "KERNEL"
+                        color: Theme.cyan
                         font.family: Theme.sansFamily
                         font.pixelSize: 9
                         font.weight: Font.DemiBold
                         font.letterSpacing: 1
                     }
                 }
+
+                Item { Layout.fillWidth: true }
+
+                QQC2.Label {
+                    text: model.sizeText + "  \u00b7  reboot required"
+                    color: Theme.textDim
+                    font.family: Theme.sansFamily
+                    font.pixelSize: 12
+                    Layout.alignment: Qt.AlignTop
+                }
             }
 
             QQC2.Label {
-                text: model.name + "   " + model.oldVersion + "  \u2192  " + model.newVersion
+                visible: model.summary.length > 0
+                Layout.fillWidth: true
+                text: model.summary
                 color: Theme.textDim
-                font.family: Theme.monoFamily
+                wrapMode: Text.WordWrap
+                font.family: Theme.sansFamily
                 font.pixelSize: 12
             }
-        }
-
-        QQC2.Label {
-            text: model.sizeText
-            color: Theme.textDim
-            font.family: Theme.sansFamily
-            font.pixelSize: 12
         }
     }
 }

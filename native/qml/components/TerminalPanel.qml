@@ -62,7 +62,7 @@ Rectangle {
             }
             Item { Layout.fillWidth: true }
             QQC2.ToolButton {
-                text: "Copy Log"
+                text: "Copy log"
                 flat: true
                 icon.name: "edit-copy"
                 font.pixelSize: 12

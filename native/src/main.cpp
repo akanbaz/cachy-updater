@@ -12,7 +12,8 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("cachyos-updater"));
-    app.setApplicationDisplayName(QStringLiteral("CachyOS Updater"));
+    app.setApplicationDisplayName(QStringLiteral("Cachy Updater"));
+    app.setApplicationVersion(QStringLiteral("1.0.0"));
     app.setOrganizationName(QStringLiteral("CachyOS"));
     app.setDesktopFileName(QStringLiteral("org.cachyos.updater"));
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("system-software-update")));
@@ -32,6 +33,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("Maintain"), &maintain);
     engine.rootContext()->setContextProperty(
         QStringLiteral("StartTab"), qEnvironmentVariableIntValue("CACHYOS_TAB"));
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("AppVersion"), app.applicationVersion());
     engine.loadFromModule("org.cachyos.updater", "Main");
     if (engine.rootObjects().isEmpty()) {
         return -1;

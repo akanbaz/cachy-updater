@@ -15,10 +15,14 @@ Item {
     width: ListView.view ? ListView.view.width : implicitWidth
     implicitHeight: col.implicitHeight + Theme.spacingSmall
 
-    function badgeColor() {
-        if (model.severity >= 3) return Theme.warnBorder
-        if (model.severity === 2) return Theme.kernelBorder
-        return Theme.borderStrong
+    function badgeBg() {
+        if (model.severity >= 3) return Theme.warnBg
+        return Qt.rgba(1, 1, 1, 0.06)
+    }
+    function badgeText() {
+        if (model.severity >= 3) return Theme.warnText
+        if (model.severity === 2) return Theme.textDim
+        return Theme.textMuted
     }
 
     Rectangle {
@@ -54,13 +58,21 @@ Item {
                 color: Theme.text
                 font.family: Theme.monoFamily
                 font.pixelSize: 13
+                font.weight: Font.DemiBold
             }
 
             QQC2.Label {
-                text: model.oldVersion + "  \u2192  " + model.newVersion
+                text: model.oldVersion + "  \u2192  "
                 color: Theme.textMuted
                 font.family: Theme.monoFamily
                 font.pixelSize: 12
+            }
+            QQC2.Label {
+                text: model.newVersion
+                color: Theme.cyan
+                font.family: Theme.monoFamily
+                font.pixelSize: 12
+                Layout.leftMargin: -Theme.spacingSmall
                 Layout.fillWidth: true
                 elide: Text.ElideRight
             }
@@ -68,16 +80,14 @@ Item {
             Rectangle {
                 visible: model.severityLabel.length > 0
                 radius: Theme.radiusSmall
-                color: "transparent"
-                border.width: 1
-                border.color: delegate.badgeColor()
-                implicitWidth: badge.implicitWidth + Theme.spacingSmall
-                implicitHeight: badge.implicitHeight + 3
+                color: delegate.badgeBg()
+                implicitWidth: badge.implicitWidth + Theme.spacingSmall * 1.5
+                implicitHeight: badge.implicitHeight + 4
                 QQC2.Label {
                     id: badge
                     anchors.centerIn: parent
                     text: model.severityLabel
-                    color: delegate.badgeColor()
+                    color: delegate.badgeText()
                     font.family: Theme.sansFamily
                     font.pixelSize: 10
                     font.weight: Font.DemiBold
@@ -95,7 +105,9 @@ Item {
 
             QQC2.ToolButton {
                 flat: true
-                icon.name: delegate.expanded ? "go-up" : "go-down"
+                icon.name: delegate.expanded ? "go-down" : "go-next"
+                icon.width: 16
+                icon.height: 16
                 implicitWidth: 26
                 implicitHeight: 26
                 onClicked: delegate.expanded = !delegate.expanded

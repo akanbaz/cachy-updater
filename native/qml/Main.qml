@@ -18,9 +18,9 @@ Kirigami.ApplicationWindow {
 
     property int currentTab: StartTab
     readonly property var tabs: [
-        { name: "Updates", icon: "update-high" },
-        { name: "News", icon: "news-subscribe" },
-        { name: "Cleanup", icon: "edit-clear-all" }
+        { name: "Updates", subtitle: "Repo, AUR, and Flatpak \u2014 with clear change summaries." },
+        { name: "News", subtitle: "Arch and CachyOS announcements." },
+        { name: "Cleanup", subtitle: "Remove orphaned packages and clear the package cache." }
     ]
 
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
@@ -56,8 +56,8 @@ Kirigami.ApplicationWindow {
             // ---- Header ------------------------------------------------
             Rectangle {
                 Layout.fillWidth: true
-                color: Theme.deepBg
-                implicitHeight: headerRow.implicitHeight + Theme.spacingLarge
+                color: Theme.bg
+                implicitHeight: headerRow.implicitHeight + Theme.spacingLarge * 1.5
 
                 RowLayout {
                     id: headerRow
@@ -68,47 +68,46 @@ Kirigami.ApplicationWindow {
                     anchors.rightMargin: Theme.spacingLarge
                     spacing: Theme.spacing
 
-                    Image {
-                        source: Qt.resolvedUrl("assets/logo.svg")
-                        sourceSize.width: 36
-                        sourceSize.height: 36
-                    }
-
                     ColumnLayout {
-                        spacing: 0
+                        Layout.fillWidth: true
+                        spacing: 2
                         QQC2.Label {
-                            text: "CachyOS Updater"
+                            text: root.tabs[root.currentTab].name
                             color: Theme.text
                             font.family: Theme.sansFamily
-                            font.pixelSize: 18
-                            font.weight: Font.DemiBold
+                            font.pixelSize: 26
+                            font.weight: Font.Bold
                         }
                         QQC2.Label {
-                            text: "Fast. Clean. Native."
-                            color: Theme.cyan
+                            text: root.tabs[root.currentTab].subtitle
+                            color: Theme.textMuted
                             font.family: Theme.sansFamily
-                            font.pixelSize: 12
+                            font.pixelSize: 13
                         }
                     }
 
-                    Item { Layout.fillWidth: true }
-
                     Rectangle {
+                        visible: root.currentTab === 0
                         width: 8; height: 8; radius: 4
                         color: root.statusColor()
                         opacity: Updater.busy ? 0.5 : 1.0
+                        Layout.alignment: Qt.AlignVCenter
                     }
                     QQC2.Label {
+                        visible: root.currentTab === 0
                         text: Updater.statusText
-                        color: Theme.textDim
+                        color: Theme.cyan
                         font.family: Theme.sansFamily
                         font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                        Layout.alignment: Qt.AlignVCenter
                     }
                     QQC2.BusyIndicator {
                         visible: Updater.busy
                         running: Updater.busy
                         implicitWidth: 18
                         implicitHeight: 18
+                        Layout.alignment: Qt.AlignVCenter
                     }
                 }
             }
@@ -117,14 +116,23 @@ Kirigami.ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true
                 color: Theme.bg
-                implicitHeight: 52
+                implicitHeight: 46
+
+                // Full-width baseline the active underline sits on.
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 1
+                    color: Theme.border
+                }
 
                 RowLayout {
                     id: tabRow
                     anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.bottom: parent.bottom
                     anchors.leftMargin: Theme.spacingLarge
-                    spacing: Theme.spacingSmall
+                    spacing: Theme.spacingLarge
 
                     Repeater {
                         model: root.tabs
@@ -134,40 +142,56 @@ Kirigami.ApplicationWindow {
                             required property var modelData
                             readonly property bool active: root.currentTab === index
                             hoverEnabled: true
-                            implicitHeight: 34
-                            implicitWidth: tabContent.implicitWidth + Theme.spacing * 2
+                            implicitHeight: 40
+                            implicitWidth: tabContent.implicitWidth
                             onClicked: root.currentTab = index
-
-                            background: Rectangle {
-                                radius: Theme.radius
-                                color: tabButton.active ? Theme.surfaceHover
-                                     : tabButton.hovered ? Theme.rowHover
-                                     : "transparent"
-                            }
 
                             contentItem: RowLayout {
                                 id: tabContent
-                                spacing: 6
-                                Kirigami.Icon {
-                                    source: modelData.icon
-                                    implicitWidth: 16; implicitHeight: 16
-                                    color: tabButton.active ? Theme.cyan : Theme.textMuted
-                                    opacity: tabButton.active ? 1.0 : 0.7
-                                }
+                                spacing: Theme.spacingSmall
+
                                 QQC2.Label {
                                     text: modelData.name
-                                    color: tabButton.active ? Theme.cyan : Theme.textDim
+                                    color: tabButton.active ? Theme.text
+                                         : tabButton.hovered ? Theme.textDim : Theme.textMuted
                                     font.family: Theme.sansFamily
-                                    font.pixelSize: 13
+                                    font.pixelSize: 14
                                     font.weight: tabButton.active ? Font.DemiBold : Font.Normal
                                 }
+
+                                // Count badge (Updates tab only).
+                                Rectangle {
+                                    visible: tabButton.index === 0 && Updater.packageCount > 0
+                                    radius: height / 2
+                                    color: tabButton.active ? Theme.cyan : Theme.surfaceHover
+                                    implicitHeight: 18
+                                    implicitWidth: Math.max(18, countLabel.implicitWidth + Theme.spacingSmall)
+                                    QQC2.Label {
+                                        id: countLabel
+                                        anchors.centerIn: parent
+                                        text: Updater.packageCount
+                                        color: tabButton.active ? Theme.cyanInk : Theme.textDim
+                                        font.family: Theme.sansFamily
+                                        font.pixelSize: 11
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                            }
+
+                            // Active underline indicator.
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: 2
+                                radius: 1
+                                color: Theme.cyan
+                                visible: tabButton.active
                             }
                         }
                     }
                 }
             }
-
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
 
             // ---- Content -----------------------------------------------
             StackLayout {
@@ -204,35 +228,53 @@ Kirigami.ApplicationWindow {
                         onClicked: Updater.check()
                     }
 
+                    QQC2.Label {
+                        text: "v" + AppVersion
+                              + (Updater.lastChecked.length > 0
+                                 ? "   \u00b7   last checked " + Updater.lastChecked : "")
+                        color: Theme.textFaint
+                        font.family: Theme.monoFamily
+                        font.pixelSize: 12
+                    }
+
                     Item { Layout.fillWidth: true }
 
                     QQC2.Label {
-                        text: Updater.selectedCount + " of " + Updater.packageCount + " selected"
+                        text: Updater.selectedCount + " selected"
                         color: Theme.textMuted
                         font.family: Theme.sansFamily
                         font.pixelSize: 12
                     }
 
-                    QQC2.Button {
-                        text: "Dry Run"
+                    QQC2.ToolButton {
+                        icon.name: "overflow-menu"
                         flat: true
                         enabled: !Updater.busy && Updater.selectedCount > 0
-                        onClicked: Updater.dryRun()
-                    }
-                    QQC2.Button {
-                        text: "Download Only"
-                        flat: true
-                        enabled: !Updater.busy && Updater.selectedCount > 0
-                        onClicked: Updater.downloadOnly()
+                        onClicked: moreMenu.open()
+                        QQC2.Menu {
+                            id: moreMenu
+                            y: -height
+                            QQC2.MenuItem {
+                                text: "Dry Run"
+                                icon.name: "system-run"
+                                onTriggered: Updater.dryRun()
+                            }
+                            QQC2.MenuItem {
+                                text: "Download Only"
+                                icon.name: "download"
+                                onTriggered: Updater.downloadOnly()
+                            }
+                        }
                     }
 
                     QQC2.Button {
                         id: applyButton
-                        text: "Apply Updates"
+                        text: "Apply " + Updater.selectedCount + " update" + (Updater.selectedCount === 1 ? "" : "s")
                         enabled: !Updater.busy && Updater.selectedCount > 0
                         onClicked: confirmDialog.open()
 
                         contentItem: QQC2.Label {
+                            id: applyLabel
                             text: applyButton.text
                             color: applyButton.enabled ? Theme.cyanInk : Theme.textFaint
                             font.family: Theme.sansFamily
@@ -240,11 +282,13 @@ Kirigami.ApplicationWindow {
                             font.weight: Font.DemiBold
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
+                            leftPadding: Theme.spacing
+                            rightPadding: Theme.spacing
                         }
                         background: Rectangle {
                             radius: Theme.radiusSmall
                             implicitHeight: 32
-                            implicitWidth: 130
+                            implicitWidth: Math.max(130, applyLabel.implicitWidth)
                             color: !applyButton.enabled ? Theme.surfaceHover
                                  : applyButton.pressed ? Theme.cyanPressed
                                  : applyButton.hovered ? Theme.cyanHover

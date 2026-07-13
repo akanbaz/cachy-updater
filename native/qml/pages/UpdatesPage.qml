@@ -24,8 +24,8 @@ ColumnLayout {
             font.family: Theme.sansFamily
             font.pixelSize: 13
             text: Updater.packageCount
-                  + (Updater.packageCount === 1 ? " package available" : " packages available")
-                  + "   \u00b7   total download " + Updater.downloadText
+                  + (Updater.packageCount === 1 ? " update pending" : " updates pending")
+                  + "   \u00b7   " + Updater.downloadText + " download"
                   + "   \u00b7   " + Updater.sourceCount
                   + (Updater.sourceCount === 1 ? " source" : " sources")
         }
