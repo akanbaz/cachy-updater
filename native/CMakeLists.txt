@@ -31,6 +31,8 @@ qt_add_executable(cachyos-updater
     src/NewsController.cpp
     src/MaintainController.h
     src/MaintainController.cpp
+    src/TrayController.h
+    src/TrayController.cpp
 )
 
 # Theme is a QML singleton; the property must be set before the module is added.
@@ -73,6 +75,12 @@ install(TARGETS cachyos-updater
 
 install(FILES org.cachyos.updater.desktop
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+
+install(FILES org.cachyos.updater-tray.desktop
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+
+install(FILES org.cachyos.updater-tray.service
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/systemd/user)
 
 # The header logo doubles as the app icon.
 install(FILES assets/logo.svg

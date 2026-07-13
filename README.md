@@ -15,6 +15,7 @@ single-binary, and styled to the CachyOS design language.
 - **Apply / Dry Run / Download Only**, full `pacman -Syu` with a partial-upgrade guard (`--ignore`)
 - **News** tab (Arch RSS + best-effort CachyOS feeds via `QNetworkAccessManager` — no curl)
 - **Cleanup** tab: orphan removal (`pacman -Rns`) and cache cleanup (`paccache`)
+- Background **system tray** applet (`cachyos-updater --tray`) with periodic checks and notifications
 - Polkit (`pkexec`) for privileged actions
 
 ## Runtime dependencies

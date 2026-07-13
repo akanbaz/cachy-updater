@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Cachy Updater Systray
+GenericName=System Updater Tray
+Comment=Background update notifier for Cachy Updater
+Exec=cachyos-updater --tray
+Icon=org.cachyos.updater
+Terminal=false
+Categories=System;Utility;
+Keywords=update;pacman;cachy;tray;
+StartupNotify=false
+NoDisplay=true

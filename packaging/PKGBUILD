@@ -30,6 +30,7 @@ optdepends=(
 )
 conflicts=('cachy-updater')
 replaces=('cachy-updater')
+install=cachyos-updater.install
 source=("$pkgname-$pkgver.tar.gz::https://github.com/akanbaz/cachy-updater/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 

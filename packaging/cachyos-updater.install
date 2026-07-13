@@ -1,0 +1,18 @@
+post_install() {
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --global disable arch-update-tray.service >/dev/null 2>&1 || true
+    systemctl --user disable --now arch-update-tray.service >/dev/null 2>&1 || true
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+    systemctl --user enable --now org.cachyos.updater-tray.service >/dev/null 2>&1 || true
+  fi
+}
+
+post_upgrade() {
+  post_install
+}
+
+pre_remove() {
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user disable --now org.cachyos.updater-tray.service >/dev/null 2>&1 || true
+  fi
+}
