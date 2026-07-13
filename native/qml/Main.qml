@@ -122,33 +122,39 @@ Kirigami.ApplicationWindow {
                                     font.weight: Font.Bold
                                 }
 
-                                Rectangle {
+                                RowLayout {
                                     visible: root.currentTab === 0
-                                    implicitWidth: 8; implicitHeight: 8; radius: 4
-                                    color: root.statusColor()
-                                    opacity: Updater.busy ? 0.5 : 1.0
-                                }
-                                Item {
-                                    visible: root.currentTab === 0
-                                    implicitWidth: 18
-                                    implicitHeight: 18
-                                    QQC2.BusyIndicator {
-                                        anchors.centerIn: parent
-                                        running: Updater.busy
-                                        visible: Updater.busy
+                                    spacing: 6
+
+                                    Item {
                                         implicitWidth: 18
                                         implicitHeight: 18
+
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            visible: !Updater.busy
+                                            width: 8
+                                            height: 8
+                                            radius: 4
+                                            color: root.statusColor()
+                                        }
+
+                                        QQC2.BusyIndicator {
+                                            anchors.centerIn: parent
+                                            running: Updater.busy
+                                            visible: Updater.busy
+                                            implicitWidth: 18
+                                            implicitHeight: 18
+                                        }
                                     }
-                                }
-                                QQC2.Label {
-                                    visible: root.currentTab === 0
-                                    Layout.minimumWidth: 168
-                                    horizontalAlignment: Text.AlignRight
-                                    text: Updater.statusText
-                                    color: Theme.cyan
-                                    font.family: Theme.sansFamily
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
+
+                                    QQC2.Label {
+                                        text: Updater.statusText
+                                        color: Theme.cyan
+                                        font.family: Theme.sansFamily
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                    }
                                 }
                             }
 
