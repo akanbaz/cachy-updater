@@ -403,7 +403,7 @@ Kirigami.ApplicationWindow {
                 color: Theme.cyan
                 font.family: Theme.monoFamily
                 font.pixelSize: 12
-                wrapMode: TextArea.Wrap
+                wrapMode: TextEdit.Wrap
                 selectByMouse: true
                 background: Rectangle {
                     color: Theme.deepBg
