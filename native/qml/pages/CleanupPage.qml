@@ -6,7 +6,9 @@ import org.cachyos.updater
 import "../components"
 
 ColumnLayout {
-    spacing: Theme.spacing
+    id: cleanupRoot
+    spacing: Theme.spacingSmall
+    width: parent ? parent.width : implicitWidth
 
     Banner { text: Maintain.warningText }
     Banner {
@@ -36,118 +38,98 @@ ColumnLayout {
 
     GridLayout {
         Layout.fillWidth: true
+        Layout.alignment: Qt.AlignTop
         columns: 2
-        columnSpacing: Theme.spacing
-        rowSpacing: Theme.spacing
+        columnSpacing: Theme.spacingSmall
+        rowSpacing: Theme.spacingSmall
 
-        CachyCard {
+        component CleanCard: CachyCard {
             Layout.fillWidth: true
-            padding: Theme.spacing
+            Layout.alignment: Qt.AlignTop
+            padding: Theme.spacingSmall
+
+            property string title
+            property string iconName: ""
+            property string valueText
+            property color valueColor: Theme.textDim
+            property string actionText
+            property bool actionEnabled: false
+            property var action
+
             ColumnLayout {
-                spacing: Theme.spacingSmall
+                spacing: 4
                 RowLayout {
-                    Kirigami.Icon { source: "package-remove"; implicitWidth: 20; implicitHeight: 20 }
+                    spacing: Theme.spacingSmall
+                    Kirigami.Icon {
+                        visible: iconName.length > 0
+                        source: iconName
+                        implicitWidth: 18
+                        implicitHeight: 18
+                    }
                     QQC2.Label {
-                        text: "Orphan packages"
+                        text: title
                         font.weight: Font.DemiBold
+                        font.pixelSize: 13
                         Layout.fillWidth: true
                     }
                 }
                 QQC2.Label {
-                    text: Maintain.orphanCount + " orphan(s)"
-                    font.pixelSize: 22
+                    text: valueText
+                    font.pixelSize: 18
                     font.weight: Font.DemiBold
-                    color: Maintain.orphanCount > 0 ? Theme.warnText : Theme.textDim
+                    color: valueColor
                 }
                 QQC2.Button {
-                    text: "Remove orphans"
-                    enabled: Maintain.orphanCount > 0 && !Maintain.busy
-                    onClicked: Maintain.removeOrphans()
+                    text: actionText
+                    enabled: actionEnabled && !Maintain.busy
+                    onClicked: if (action) action()
                 }
             }
         }
 
-        CachyCard {
-            Layout.fillWidth: true
-            padding: Theme.spacing
-            ColumnLayout {
-                spacing: Theme.spacingSmall
-                RowLayout {
-                    Kirigami.Icon { source: "edit-clear-history"; implicitWidth: 20; implicitHeight: 20 }
-                    QQC2.Label {
-                        text: "Package cache (keep " + Settings.cacheKeepVersions + ")"
-                        font.weight: Font.DemiBold
-                        Layout.fillWidth: true
-                    }
-                }
-                QQC2.Label {
-                    text: Maintain.cacheTotal + " file(s)"
-                    font.pixelSize: 22
-                    font.weight: Font.DemiBold
-                }
-                QQC2.Button {
-                    text: "Clean cache"
-                    enabled: Maintain.cacheTotal > 0 && !Maintain.busy
-                    onClicked: Maintain.cleanCache()
-                }
-            }
+        CleanCard {
+            title: "Orphan packages"
+            iconName: "package-remove"
+            valueText: Maintain.orphanCount + " orphan(s)"
+            valueColor: Maintain.orphanCount > 0 ? Theme.warnText : Theme.textDim
+            actionText: "Remove orphans"
+            actionEnabled: Maintain.orphanCount > 0
+            action: function() { Maintain.removeOrphans() }
         }
 
-        CachyCard {
-            Layout.fillWidth: true
-            padding: Theme.spacing
-            ColumnLayout {
-                spacing: Theme.spacingSmall
-                QQC2.Label { text: "Old kernels"; font.weight: Font.DemiBold }
-                QQC2.Label {
-                    text: Maintain.oldKernelCount + " removable"
-                    font.pixelSize: 22
-                    font.weight: Font.DemiBold
-                }
-                QQC2.Button {
-                    text: "Remove old kernels"
-                    enabled: Maintain.oldKernelCount > 0 && !Maintain.busy
-                    onClicked: Maintain.removeOldKernels()
-                }
-            }
+        CleanCard {
+            title: "Package cache (keep " + Settings.cacheKeepVersions + ")"
+            iconName: "edit-clear-history"
+            valueText: Maintain.cacheTotal + " file(s)"
+            actionText: "Clean cache"
+            actionEnabled: Maintain.cacheTotal > 0
+            action: function() { Maintain.cleanCache() }
         }
 
-        CachyCard {
-            Layout.fillWidth: true
-            padding: Theme.spacing
-            ColumnLayout {
-                spacing: Theme.spacingSmall
-                QQC2.Label { text: "Flatpak unused"; font.weight: Font.DemiBold }
-                QQC2.Label {
-                    text: Maintain.flatpakUnusedCount + " runtime(s)"
-                    font.pixelSize: 22
-                    font.weight: Font.DemiBold
-                }
-                QQC2.Button {
-                    text: "Clean unused"
-                    enabled: Maintain.flatpakUnusedCount > 0 && !Maintain.busy
-                    onClicked: Maintain.cleanFlatpakUnused()
-                }
-            }
+        CleanCard {
+            title: "Old kernels"
+            valueText: Maintain.oldKernelCount + " removable"
+            valueColor: Maintain.oldKernelCount > 0 ? Theme.text : Theme.textDim
+            actionText: "Remove old kernels"
+            actionEnabled: Maintain.oldKernelCount > 0
+            action: function() { Maintain.removeOldKernels() }
         }
 
-        CachyCard {
-            Layout.fillWidth: true
-            Layout.columnSpan: 2
-            padding: Theme.spacing
-            RowLayout {
-                Layout.fillWidth: true
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    QQC2.Label { text: "AUR build cache"; font.weight: Font.DemiBold }
-                    QQC2.Label { text: Maintain.aurCacheCount + " package(s) in cache" }
-                }
-                QQC2.Button {
-                    text: "Clean AUR cache"
-                    enabled: Maintain.aurCacheCount > 0 && !Maintain.busy
-                    onClicked: Maintain.cleanAurCache()
-                }
-            }
+        CleanCard {
+            title: "Flatpak unused"
+            valueText: Maintain.flatpakUnusedCount + " runtime(s)"
+            actionText: "Clean unused"
+            actionEnabled: Maintain.flatpakUnusedCount > 0
+            action: function() { Maintain.cleanFlatpakUnused() }
+        }
+
+        CleanCard {
+            title: "AUR build cache"
+            valueText: Maintain.aurCacheCount + " package(s) in cache"
+            valueColor: Maintain.aurCacheCount > 0 ? Theme.text : Theme.textDim
+            actionText: "Clean AUR cache"
+            actionEnabled: Maintain.aurCacheCount > 0
+            action: function() { Maintain.cleanAurCache() }
         }
     }
 }

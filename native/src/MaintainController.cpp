@@ -5,11 +5,64 @@
 #include "ProcessRunner.h"
 #include "SettingsController.h"
 
+#include <QDir>
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <memory>
 
 namespace {
+
+QString aurCacheRoot(const QString &helper)
+{
+    return QDir::homePath() + QStringLiteral("/.cache/") + helper;
+}
+
+int countAurCacheEntries(const QString &helper)
+{
+    const QDir clone(aurCacheRoot(helper) + QStringLiteral("/clone"));
+    if (clone.exists())
+        return clone.entryList(QDir::Dirs | QDir::NoDotAndDotDot).size();
+
+    if (helper == QLatin1String("yay")) {
+        const QDir yayRoot(aurCacheRoot(helper));
+        if (yayRoot.exists())
+            return yayRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot).size();
+    }
+    return 0;
+}
+
+bool removeAurCacheEntries(const QString &helper)
+{
+    bool ok = true;
+    const QString root = aurCacheRoot(helper);
+    const QStringList subdirs =
+        helper == QLatin1String("paru")
+            ? QStringList{QStringLiteral("clone"), QStringLiteral("diff")}
+            : QStringList{QString()};
+
+    if (helper == QLatin1String("yay")) {
+        const QDir yayRoot(root);
+        if (!yayRoot.exists())
+            return true;
+        for (const QString &name :
+             yayRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (!QDir(yayRoot.absoluteFilePath(name)).removeRecursively())
+                ok = false;
+        }
+        return ok;
+    }
+
+    for (const QString &sub : subdirs) {
+        const QDir dir(root + QLatin1Char('/') + sub);
+        if (!dir.exists())
+            continue;
+        for (const QString &name : dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (!QDir(dir.absoluteFilePath(name)).removeRecursively())
+                ok = false;
+        }
+    }
+    return ok;
+}
 
 int parseFlatpakUnusedCount(const QString &out)
 {
@@ -176,21 +229,9 @@ void MaintainController::scan()
 
     const QString aur = cachy::helpers::aurHelper();
     if (!aur.isEmpty()) {
-        incInflight(1);
-        runQuiet(aur, {QStringLiteral("-Sc"), QStringLiteral("--dry-run")},
-                 [this](int, const QString &out) {
-                     m_aurCacheCount = 0;
-                     const QList<QStringView> lines =
-                         QStringView(out).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
-                     for (const QStringView &l : lines) {
-                         if (l.contains(QLatin1String("Packages to keep")))
-                             continue;
-                         if (!l.trimmed().isEmpty())
-                             ++m_aurCacheCount;
-                     }
-                     emit changed();
-                     incInflight(-1);
-                 });
+        m_aurCacheCount = countAurCacheEntries(aur);
+        updateDiskSummary();
+        emit changed();
     }
 
     if (which(QStringLiteral("paccache")).isEmpty()) {
@@ -355,11 +396,21 @@ void MaintainController::cleanAurCache()
     if (aur.isEmpty())
         return;
     setBusy(true);
-    runStreaming(aur, {QStringLiteral("-Sc"), QStringLiteral("--noconfirm")},
-                 [this](int code) {
-                     if (code == 0)
-                         emitLine(QStringLiteral("AUR cache cleaned."), QStringLiteral("ok"));
-                     setBusy(false);
-                     scan();
-                 });
+    emitLine(QStringLiteral("$ cleaning %1 build cache in ~/.cache/%1")
+                 .arg(aur),
+             QStringLiteral("cmd"));
+    const bool ok = removeAurCacheEntries(aur);
+    m_aurCacheCount = countAurCacheEntries(aur);
+    updateDiskSummary();
+    if (ok && m_aurCacheCount == 0)
+        emitLine(QStringLiteral("AUR cache cleaned."), QStringLiteral("ok"));
+    else if (!ok)
+        emitLine(QStringLiteral("Some AUR cache entries could not be removed."),
+                 QStringLiteral("warn"));
+    else
+        emitLine(QStringLiteral("AUR cache partially cleaned (%1 entries remain).")
+                     .arg(m_aurCacheCount),
+                 QStringLiteral("warn"));
+    emit changed();
+    setBusy(false);
 }

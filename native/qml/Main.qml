@@ -373,28 +373,37 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            ColumnLayout {
+            Item {
                 visible: root.currentTab === 2
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 0
+                Layout.minimumHeight: 0
 
-                Item {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.minimumHeight: 0
-                    CleanupPage {
-                        anchors.fill: parent
-                        anchors.margins: Theme.spacingSmall
-                    }
+                CleanupPage {
+                    id: cleanupPageTab
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.topMargin: Theme.spacingSmall
+                    anchors.leftMargin: Theme.spacingSmall
+                    anchors.rightMargin: Theme.spacingSmall
+                    height: implicitHeight
                 }
 
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
+                ColumnLayout {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    spacing: 0
 
-                TerminalPanel {
-                    controller: Maintain
-                    radius: 0
-                    edgeMargin: Theme.spacingSmall
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
+
+                    TerminalPanel {
+                        controller: Maintain
+                        radius: 0
+                        edgeMargin: Theme.spacingSmall
+                    }
                 }
             }
 
