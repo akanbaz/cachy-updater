@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
-# Build, install to ~/.local, and restart the tray so one binary feeds GUI + tray.
+# One real binary (native/build/cachyos-updater); ~/.local/bin and optionally
+# /usr/bin are only short_cuts (symlinks) to it. Rebuild = tray + GUI update.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="${ROOT}/native/build"
 PREFIX="${HOME}/.local"
+BIN_NAME="cachyos-updater"
+REAL_BIN="${BUILD}/${BIN_NAME}"
+LOCAL_BIN="${PREFIX}/bin/${BIN_NAME}"
 CMAKE="${ROOT}/.buildenv/bin/cmake"
+LINK_SYSTEM="${LINK_SYSTEM:-1}"
 
 if [[ ! -x "${CMAKE}" ]]; then
   CMAKE="$(command -v cmake)"
 fi
 
-mkdir -p "${BUILD}"
+mkdir -p "${BUILD}" "${PREFIX}/bin"
 if [[ ! -f "${BUILD}/CMakeCache.txt" ]]; then
   "${CMAKE}" -S "${ROOT}/native" -B "${BUILD}" -DCMAKE_BUILD_TYPE=Release
 fi
@@ -19,17 +24,39 @@ fi
 "${CMAKE}" --build "${BUILD}" -j"$(nproc)"
 "${CMAKE}" --install "${BUILD}" --prefix "${PREFIX}"
 
-# Desktop launchers: pin absolute path so Plasma never picks /usr/bin by accident.
-for f in org.cachyos.updater.desktop org.cachyos.updater-tray.desktop; do
-  dest="${PREFIX}/share/applications/${f}"
-  if [[ -f "${dest}" ]]; then
-    sed -i "s|^Exec=cachyos-updater|Exec=${PREFIX}/bin/cachyos-updater|" "${dest}"
-    sed -i "s|^TryExec=.*|TryExec=${PREFIX}/bin/cachyos-updater|" "${dest}"
-  fi
-done
+# cmake --install copies a second binary — replace it with a shortcut to the build.
+ln -sfn "${REAL_BIN}" "${LOCAL_BIN}"
+
+# Desktop launchers: always open the local shortcut.
+{
+  sed -i \
+    -e "s|^Exec=.*|Exec=${LOCAL_BIN}|" \
+    -e "s|^TryExec=.*|TryExec=${LOCAL_BIN}|" \
+    "${PREFIX}/share/applications/org.cachyos.updater.desktop"
+  sed -i \
+    -e "s|^Exec=.*|Exec=${LOCAL_BIN} --tray|" \
+    -e "s|^TryExec=.*|TryExec=${LOCAL_BIN}|" \
+    "${PREFIX}/share/applications/org.cachyos.updater-tray.desktop"
+} 2>/dev/null || true
 update-desktop-database "${PREFIX}/share/applications" 2>/dev/null || true
 
-# User systemd override: prefer ~/.local/bin and point at this install.
+# Optional: /usr/bin becomes a shortcut to the same binary (needs sudo once).
+if [[ "${LINK_SYSTEM}" == "1" ]]; then
+  target="$(readlink -f "${REAL_BIN}")"
+  current="$(readlink -f "/usr/bin/${BIN_NAME}" 2>/dev/null || true)"
+  if [[ "${current}" != "${target}" ]]; then
+    if sudo -n true 2>/dev/null; then
+      sudo ln -sfn "${LOCAL_BIN}" "/usr/bin/${BIN_NAME}"
+      echo "System shortcut: /usr/bin/${BIN_NAME} -> ${LOCAL_BIN}"
+    else
+      echo
+      echo "One-time (makes /usr/bin a shortcut too — needs your password):"
+      echo "  sudo ln -sfn ${LOCAL_BIN} /usr/bin/${BIN_NAME}"
+    fi
+  fi
+fi
+
+# User systemd: point at the local shortcut (resolves to the build binary).
 mkdir -p "${HOME}/.config/systemd/user"
 cat > "${HOME}/.config/systemd/user/org.cachyos.updater-tray.service" <<EOF
 [Unit]
@@ -37,30 +64,30 @@ Description=Cachy Updater systray applet
 After=graphical-session.target
 
 [Service]
-Environment=PATH=${PREFIX}/bin:/usr/local/bin:/usr/bin
-ExecStart=${PREFIX}/bin/cachyos-updater --tray
+ExecStart=${LOCAL_BIN} --tray
 Restart=on-failure
 
 [Install]
 WantedBy=graphical-session.target
 EOF
 
-if [[ -f "${PREFIX}/share/systemd/user/org.cachyos.updater-check.service" ]]; then
-  cp "${PREFIX}/share/systemd/user/org.cachyos.updater-check.service" \
-     "${HOME}/.config/systemd/user/org.cachyos.updater-check.service"
-  sed -i "s|ExecStart=.*|ExecStart=${PREFIX}/bin/cachyos-updater --check --notify|" \
-    "${HOME}/.config/systemd/user/org.cachyos.updater-check.service"
-  if ! grep -q '^Environment=' "${HOME}/.config/systemd/user/org.cachyos.updater-check.service"; then
-    sed -i "/^\\[Service\\]/a Environment=PATH=${PREFIX}/bin:/usr/local/bin:/usr/bin" \
-      "${HOME}/.config/systemd/user/org.cachyos.updater-check.service"
-  fi
-fi
+cat > "${HOME}/.config/systemd/user/org.cachyos.updater-check.service" <<EOF
+[Unit]
+Description=CachyOS Updater scheduled check
+
+[Service]
+Type=oneshot
+ExecStart=${LOCAL_BIN} --check --notify
+EOF
 
 systemctl --user daemon-reload
 systemctl --user enable --now org.cachyos.updater-tray.service
 systemctl --user restart org.cachyos.updater-tray.service
 
 echo
-echo "Installed: ${PREFIX}/bin/cachyos-updater"
-echo "Tray restarted from that binary."
-echo "Launch GUI: ${PREFIX}/bin/cachyos-updater"
+echo "Real binary:  ${REAL_BIN}"
+echo "Local shortcut: ${LOCAL_BIN} -> $(readlink -f "${LOCAL_BIN}")"
+if [[ -L /usr/bin/${BIN_NAME} ]]; then
+  echo "System shortcut: /usr/bin/${BIN_NAME} -> $(readlink /usr/bin/${BIN_NAME})"
+fi
+echo "Tray restarted. Rebuilds update the same binary for GUI + tray."

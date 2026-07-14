@@ -66,6 +66,7 @@ qt_add_qml_module(cachyos-updater
 qt_add_resources(cachyos-updater tray_icons
     PREFIX /tray
     FILES
+        assets/logo.svg
         assets/tray-uptodate.svg
         assets/tray-updates.svg
 )

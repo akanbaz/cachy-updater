@@ -39,7 +39,16 @@ int main(int argc, char *argv[])
     app.setApplicationVersion(QStringLiteral("1.1.0"));
     app.setOrganizationName(QStringLiteral("CachyOS"));
     app.setDesktopFileName(QStringLiteral("org.cachyos.updater"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("system-software-update")));
+    {
+        QIcon appIcon = QIcon::fromTheme(QStringLiteral("org.cachyos.updater"));
+        if (appIcon.isNull())
+            appIcon = QIcon::fromTheme(QStringLiteral("org.cachyos.updater-tray"));
+        if (appIcon.isNull())
+            appIcon = QIcon(QStringLiteral(":/tray/assets/logo.svg"));
+        if (appIcon.isNull())
+            appIcon = QIcon(QStringLiteral(":/tray/assets/tray-uptodate.svg"));
+        app.setWindowIcon(appIcon);
+    }
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("CachyOS native system updater"));
@@ -78,7 +87,12 @@ int main(int argc, char *argv[])
             if (parser.isSet(notifyOption) && count > 0
                 && QSystemTrayIcon::isSystemTrayAvailable()) {
                 QSystemTrayIcon tray;
-                tray.setIcon(QIcon::fromTheme(QStringLiteral("system-software-update")));
+                QIcon notifyIcon = QIcon::fromTheme(QStringLiteral("org.cachyos.updater-tray-updates"));
+                if (notifyIcon.isNull())
+                    notifyIcon = QIcon(QStringLiteral(":/tray/assets/tray-updates.svg"));
+                if (notifyIcon.isNull())
+                    notifyIcon = app.windowIcon();
+                tray.setIcon(notifyIcon);
                 tray.show();
                 tray.showMessage(QStringLiteral("Cachy Updater"),
                                  count == 1 ? QStringLiteral("1 update available")

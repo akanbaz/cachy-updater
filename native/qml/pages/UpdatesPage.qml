@@ -126,7 +126,7 @@ ColumnLayout {
             anchors.topMargin: Theme.spacingLarge * 2
             width: parent.width - Theme.spacingLarge * 2
             visible: Updater.packageCount === 0 && !Updater.busy
-            icon.name: Updater.statusState === "uptodate" ? "checkmark" : "system-software-update"
+            icon.name: Updater.statusState === "uptodate" ? "org.cachyos.updater" : "org.cachyos.updater-tray-updates"
             text: Updater.statusState === "uptodate" ? "System is up to date" : "No updates yet"
             explanation: Updater.statusState === "uptodate"
                 ? "Everything is current. Last checked " + Updater.lastChecked + "."
