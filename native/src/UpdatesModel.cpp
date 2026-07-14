@@ -233,6 +233,18 @@ void UpdateListProxy::setSourceFilter(const QString &source)
     emit filtersChanged();
 }
 
+void UpdateListProxy::setSortMode(int mode)
+{
+    mode = qBound(0, mode, static_cast<int>(SortMode::Name));
+    const auto next = static_cast<SortMode>(mode);
+    if (m_sortMode == next)
+        return;
+    m_sortMode = next;
+    invalidate();
+    sort(0);
+    emit filtersChanged();
+}
+
 bool UpdateListProxy::filterAcceptsRow(int sourceRow,
                                        const QModelIndex &sourceParent) const
 {
@@ -255,4 +267,35 @@ bool UpdateListProxy::filterAcceptsRow(int sourceRow,
             return false;
     }
     return true;
+}
+
+bool UpdateListProxy::lessThan(const QModelIndex &left,
+                               const QModelIndex &right) const
+{
+    const auto nameLess = [&] {
+        return left.data(UpdatesModel::NameRole).toString()
+            < right.data(UpdatesModel::NameRole).toString();
+    };
+
+    switch (m_sortMode) {
+    case SortMode::Important: {
+        const int ls = left.data(UpdatesModel::SeverityRole).toInt();
+        const int rs = right.data(UpdatesModel::SeverityRole).toInt();
+        if (ls != rs)
+            return ls > rs;
+        return nameLess();
+    }
+    case SortMode::Size: {
+        const qlonglong ls = left.data(UpdatesModel::SizeBytesRole).toLongLong();
+        const qlonglong rs = right.data(UpdatesModel::SizeBytesRole).toLongLong();
+        if (ls != rs)
+            return ls > rs;
+        return nameLess();
+    }
+    case SortMode::Name:
+        return nameLess();
+    case SortMode::Default:
+    default:
+        return PkgFilterProxy::lessThan(left, right);
+    }
 }

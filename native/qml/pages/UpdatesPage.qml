@@ -80,6 +80,15 @@ ColumnLayout {
                   : " "
         }
 
+        QQC2.ComboBox {
+            Layout.preferredWidth: 148
+            opacity: Updater.packageCount > 0 ? 1.0 : 0.0
+            enabled: Updater.packageCount > 0 && !Updater.busy
+            model: ["By source", "Important first", "Largest first", "Name A\u2013Z"]
+            currentIndex: Updater.sortMode
+            onActivated: Updater.setSortMode(currentIndex)
+        }
+
         QQC2.CheckBox {
             text: "Select all"
             opacity: Updater.packageCount > 0 ? 1.0 : 0.0

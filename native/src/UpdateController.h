@@ -41,6 +41,7 @@ class UpdateController : public QObject
     Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY filtersChanged)
     Q_PROPERTY(int minSeverity READ minSeverity WRITE setMinSeverity NOTIFY filtersChanged)
     Q_PROPERTY(QString sourceFilter READ sourceFilter WRITE setSourceFilter NOTIFY filtersChanged)
+    Q_PROPERTY(int sortMode READ sortMode WRITE setSortMode NOTIFY filtersChanged)
     Q_PROPERTY(QString reclaimableSpace READ reclaimableSpace NOTIFY updatesChanged)
     Q_PROPERTY(QObject *updatesModel READ updatesModelObject CONSTANT)
     Q_PROPERTY(QObject *kernelModel READ kernelModelObject CONSTANT)
@@ -76,6 +77,7 @@ public:
     QString searchText() const;
     int minSeverity() const;
     QString sourceFilter() const;
+    int sortMode() const;
     QString reclaimableSpace() const { return m_reclaimableSpace; }
     QObject *updatesModelObject() const;
     QObject *kernelModelObject() const;
@@ -92,6 +94,7 @@ public:
     Q_INVOKABLE void setSearchText(const QString &text);
     Q_INVOKABLE void setMinSeverity(int severity);
     Q_INVOKABLE void setSourceFilter(const QString &source);
+    Q_INVOKABLE void setSortMode(int mode);
     Q_INVOKABLE void clearFilters();
     Q_INVOKABLE void holdPackage(const QString &name);
     Q_INVOKABLE void unholdPackage(const QString &name);

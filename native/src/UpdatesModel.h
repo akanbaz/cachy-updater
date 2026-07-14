@@ -77,17 +77,23 @@ class UpdateListProxy : public PkgFilterProxy
     Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY filtersChanged)
     Q_PROPERTY(int minSeverity READ minSeverity WRITE setMinSeverity NOTIFY filtersChanged)
     Q_PROPERTY(QString sourceFilter READ sourceFilter WRITE setSourceFilter NOTIFY filtersChanged)
+    Q_PROPERTY(int sortMode READ sortMode WRITE setSortMode NOTIFY filtersChanged)
 
 public:
+    enum class SortMode { Default = 0, Important, Size, Name };
+    Q_ENUM(SortMode)
+
     explicit UpdateListProxy(QObject *parent = nullptr);
 
     QString searchText() const { return m_searchText; }
     int minSeverity() const { return m_minSeverity; }
     QString sourceFilter() const { return m_sourceFilter; }
+    int sortMode() const { return static_cast<int>(m_sortMode); }
 
     void setSearchText(const QString &text);
     void setMinSeverity(int severity);
     void setSourceFilter(const QString &source);
+    void setSortMode(int mode);
 
 signals:
     void filtersChanged();
@@ -95,9 +101,12 @@ signals:
 protected:
     bool filterAcceptsRow(int sourceRow,
                           const QModelIndex &sourceParent) const override;
+    bool lessThan(const QModelIndex &left,
+                  const QModelIndex &right) const override;
 
 private:
     QString m_searchText;
     int m_minSeverity = 0;
     QString m_sourceFilter;
+    SortMode m_sortMode = SortMode::Default;
 };

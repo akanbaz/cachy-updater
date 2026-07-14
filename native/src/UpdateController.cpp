@@ -59,6 +59,7 @@ bool UpdateController::snapshotsAvailable() const { return helpers::snapshotsAva
 QString UpdateController::searchText() const { return m_listProxy->searchText(); }
 int UpdateController::minSeverity() const { return m_listProxy->minSeverity(); }
 QString UpdateController::sourceFilter() const { return m_listProxy->sourceFilter(); }
+int UpdateController::sortMode() const { return m_listProxy->sortMode(); }
 
 void UpdateController::setSearchText(const QString &text)
 {
@@ -78,11 +79,18 @@ void UpdateController::setSourceFilter(const QString &source)
     emit filtersChanged();
 }
 
+void UpdateController::setSortMode(int mode)
+{
+    m_listProxy->setSortMode(mode);
+    emit filtersChanged();
+}
+
 void UpdateController::clearFilters()
 {
     m_listProxy->setSearchText({});
     m_listProxy->setMinSeverity(0);
     m_listProxy->setSourceFilter({});
+    m_listProxy->setSortMode(0);
     emit filtersChanged();
 }
 
