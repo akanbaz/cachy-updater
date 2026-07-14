@@ -3,7 +3,9 @@ Description=Cachy Updater systray applet
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/cachyos-updater --tray
+# Prefer a fresh ~/.local install over the system package so rebuilds apply without sudo.
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=/usr/bin/env cachyos-updater --tray
 Restart=on-failure
 
 [Install]

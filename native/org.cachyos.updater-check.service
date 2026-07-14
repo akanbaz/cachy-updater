@@ -3,4 +3,5 @@ Description=CachyOS Updater scheduled check
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cachyos-updater --check --notify
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=/usr/bin/env cachyos-updater --check --notify
