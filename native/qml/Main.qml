@@ -18,7 +18,7 @@ Kirigami.ApplicationWindow {
 
     property int currentTab: StartTab
     readonly property var tabs: [
-        { name: "Updates", icon: "org.cachyos.updater",
+        { name: "Updates", icon: "org.cachyos.updater-tray",
           subtitle: "Repo, AUR, and Flatpak \u2014 with clear change summaries." },
         { name: "News", icon: "news-subscribe",
           subtitle: "Arch and CachyOS announcements." },

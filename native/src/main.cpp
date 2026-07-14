@@ -40,13 +40,14 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("CachyOS"));
     app.setDesktopFileName(QStringLiteral("org.cachyos.updater"));
     {
-        QIcon appIcon = QIcon::fromTheme(QStringLiteral("org.cachyos.updater"));
+        // Prefer the embedded brand mark — theme may still have an old /usr icon cached.
+        QIcon appIcon(QStringLiteral(":/tray/assets/logo.svg"));
+        if (appIcon.isNull())
+            appIcon = QIcon(QStringLiteral(":/tray/assets/tray-uptodate.svg"));
         if (appIcon.isNull())
             appIcon = QIcon::fromTheme(QStringLiteral("org.cachyos.updater-tray"));
         if (appIcon.isNull())
-            appIcon = QIcon(QStringLiteral(":/tray/assets/logo.svg"));
-        if (appIcon.isNull())
-            appIcon = QIcon(QStringLiteral(":/tray/assets/tray-uptodate.svg"));
+            appIcon = QIcon::fromTheme(QStringLiteral("org.cachyos.updater"));
         app.setWindowIcon(appIcon);
     }
 

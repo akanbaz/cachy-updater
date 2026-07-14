@@ -37,14 +37,9 @@ QIcon trayIconFor(bool hasUpdates)
         return out;
     };
 
-    QIcon icon = sizedIcon(QIcon::fromTheme(themeName));
-    if (!icon.isNull())
-        return icon;
-
-    const QString resourcePath =
-        QStringLiteral(":/tray/assets/%1").arg(resourceName);
-    if (QFile::exists(resourcePath))
-        icon = sizedIcon(QIcon(resourcePath));
+    QIcon icon = sizedIcon(QIcon(QStringLiteral(":/tray/assets/%1").arg(resourceName)));
+    if (icon.isNull())
+        icon = sizedIcon(QIcon::fromTheme(themeName));
     if (!icon.isNull())
         return icon;
 

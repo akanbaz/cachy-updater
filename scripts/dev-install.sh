@@ -80,6 +80,25 @@ Type=oneshot
 ExecStart=${LOCAL_BIN} --check --notify
 EOF
 
+# Refresh Plasma icon lookup: replace stale /usr app icon when possible.
+if sudo -n true 2>/dev/null; then
+  sudo install -Dm644 "${ROOT}/native/assets/logo.svg" \
+    /usr/share/icons/hicolor/scalable/apps/org.cachyos.updater.svg
+  sudo install -Dm644 "${ROOT}/native/assets/tray-uptodate.svg" \
+    /usr/share/icons/hicolor/scalable/status/org.cachyos.updater-tray.svg
+  sudo install -Dm644 "${ROOT}/native/assets/tray-updates.svg" \
+    /usr/share/icons/hicolor/scalable/status/org.cachyos.updater-tray-updates.svg
+  sudo gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+elif [[ -f /usr/share/icons/hicolor/scalable/apps/org.cachyos.updater.svg ]]; then
+  echo
+  echo "Panel still showing the old icon? Update the system icon once:"
+  echo "  sudo install -Dm644 ${ROOT}/native/assets/logo.svg /usr/share/icons/hicolor/scalable/apps/org.cachyos.updater.svg"
+  echo "  sudo gtk-update-icon-cache -f /usr/share/icons/hicolor"
+fi
+
+gtk-update-icon-cache -f "${PREFIX}/share/icons/hicolor" 2>/dev/null || true
+rm -f "${HOME}/.cache/icon-cache.kcache" 2>/dev/null || true
+
 systemctl --user daemon-reload
 systemctl --user enable --now org.cachyos.updater-tray.service
 systemctl --user restart org.cachyos.updater-tray.service
@@ -91,3 +110,5 @@ if [[ -L /usr/bin/${BIN_NAME} ]]; then
   echo "System shortcut: /usr/bin/${BIN_NAME} -> $(readlink /usr/bin/${BIN_NAME})"
 fi
 echo "Tray restarted. Rebuilds update the same binary for GUI + tray."
+echo "If the panel icon is still old, log out/in once or run:"
+echo "  kbuildsycoca6 --noincremental 2>/dev/null || true"
