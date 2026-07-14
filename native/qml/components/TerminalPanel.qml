@@ -13,16 +13,28 @@ Rectangle {
     property int edgeMargin: Theme.spacingSmall
     property int maxLines: 1500
     property int lineCount: 0
-    readonly property int barHeight: bar.implicitHeight + Theme.spacingSmall * 2
-    readonly property int expandedHeight: Math.min(220, Math.max(120, expanded ? 220 : barHeight))
+    property int bodyHeight: 200
+
+    readonly property int headerHeight: 40
+    readonly property int panelHeight: expanded ? (headerHeight + bodyHeight) : headerHeight
 
     Layout.fillWidth: true
-    Layout.preferredHeight: expanded ? expandedHeight : barHeight
-    Layout.maximumHeight: expanded ? expandedHeight : barHeight
-    Behavior on Layout.preferredHeight { NumberAnimation { duration: 0 } }
+    Layout.preferredHeight: panelHeight
+    Layout.minimumHeight: panelHeight
+    Layout.maximumHeight: panelHeight
     color: Theme.deepBg
     radius: Theme.radius
     clip: true
+
+    Behavior on Layout.preferredHeight {
+        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+    }
+    Behavior on Layout.minimumHeight {
+        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+    }
+    Behavior on Layout.maximumHeight {
+        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+    }
 
     function escapeHtml(s) {
         return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -49,6 +61,9 @@ Rectangle {
         lineCount += 1
         area.cursorPosition = area.length
     }
+    function toggle() {
+        expanded = !expanded
+    }
 
     Connections {
         target: term.controller
@@ -65,55 +80,85 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.leftMargin: term.edgeMargin
-        anchors.rightMargin: term.edgeMargin
-        anchors.topMargin: Theme.spacingSmall
-        anchors.bottomMargin: Theme.spacingSmall
-        spacing: Theme.spacingSmall
+        spacing: 0
 
-        RowLayout {
-            id: bar
+        // Header — always visible; click anywhere (except action buttons) to toggle.
+        Rectangle {
+            id: header
             Layout.fillWidth: true
-            spacing: Theme.spacingSmall
+            Layout.preferredHeight: term.headerHeight
+            Layout.maximumHeight: term.headerHeight
+            color: "transparent"
 
-            Kirigami.Icon {
-                source: "utilities-terminal"
-                implicitWidth: Theme.iconSmall
-                implicitHeight: Theme.iconSmall
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton
+                onClicked: term.toggle()
             }
-            QQC2.Label {
-                text: "Terminal"
-                color: Theme.textDim
-                font.family: Theme.sansFamily
-                font.pixelSize: 12
-                font.weight: Font.DemiBold
-            }
-            Item { Layout.fillWidth: true }
-            QQC2.ToolButton {
-                text: "Clear"
-                flat: true
-                icon.name: "edit-clear"
-                font.pixelSize: 12
-                onClicked: term.clear()
-            }
-            QQC2.ToolButton {
-                text: "Copy log"
-                flat: true
-                icon.name: "edit-copy"
-                font.pixelSize: 12
-                onClicked: { area.selectAll(); area.copy(); area.deselect() }
-            }
-            QQC2.ToolButton {
-                flat: true
-                icon.name: term.expanded ? "go-down" : "go-up"
-                onClicked: term.expanded = !term.expanded
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: term.edgeMargin
+                anchors.rightMargin: term.edgeMargin
+                spacing: Theme.spacingSmall
+
+                Kirigami.Icon {
+                    source: term.expanded ? "go-down" : "go-up"
+                    implicitWidth: Theme.iconSmall
+                    implicitHeight: Theme.iconSmall
+                    color: Theme.textMuted
+                }
+                QQC2.Label {
+                    text: "Terminal"
+                    color: Theme.textDim
+                    font.family: Theme.sansFamily
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+                QQC2.Label {
+                    visible: !term.expanded && term.lineCount > 0
+                    text: term.lineCount + (term.lineCount === 1 ? " line" : " lines")
+                    color: Theme.textFaint
+                    font.family: Theme.monoFamily
+                    font.pixelSize: 11
+                }
+                Item { Layout.fillWidth: true }
+
+                QQC2.ToolButton {
+                    text: "Clear"
+                    flat: true
+                    icon.name: "edit-clear"
+                    font.pixelSize: 12
+                    enabled: term.lineCount > 0
+                    onClicked: term.clear()
+                }
+                QQC2.ToolButton {
+                    text: "Copy log"
+                    flat: true
+                    icon.name: "edit-copy"
+                    font.pixelSize: 12
+                    enabled: term.lineCount > 0
+                    onClicked: { area.selectAll(); area.copy(); area.deselect() }
+                }
+                QQC2.ToolButton {
+                    text: term.expanded ? "Collapse" : "Expand"
+                    flat: true
+                    icon.name: term.expanded ? "arrow-down" : "arrow-up"
+                    font.pixelSize: 12
+                    onClicked: term.toggle()
+                }
             }
         }
 
+        // Body — only allocated when expanded; fills remaining panel height.
         QQC2.ScrollView {
+            id: scroll
             visible: term.expanded
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.max(0, term.expandedHeight - term.barHeight)
+            Layout.fillHeight: true
+            Layout.leftMargin: term.edgeMargin
+            Layout.rightMargin: term.edgeMargin
+            Layout.bottomMargin: Theme.spacingSmall
             clip: true
             QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AsNeeded
             QQC2.ScrollBar.vertical.policy: QQC2.ScrollBar.AsNeeded
@@ -127,7 +172,6 @@ Rectangle {
                 font.family: Theme.monoFamily
                 font.pixelSize: 12
                 background: Rectangle { color: "transparent" }
-                // Avoid focus traps — terminal is display-only.
                 activeFocusOnTab: false
             }
         }

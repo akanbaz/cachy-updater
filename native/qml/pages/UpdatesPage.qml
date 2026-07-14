@@ -8,11 +8,10 @@ ColumnLayout {
     id: updatesRoot
     spacing: Theme.spacingSmall
     width: parent ? parent.width : implicitWidth
-    implicitHeight: chromeColumn.implicitHeight + list.effectiveHeight + Theme.spacingSmall
 
     ColumnLayout {
         id: chromeColumn
-        width: parent.width
+        Layout.fillWidth: true
         spacing: Theme.spacingSmall
 
     Banner { text: Updater.warningText }
@@ -124,13 +123,8 @@ ColumnLayout {
     ListView {
         id: list
         Layout.fillWidth: true
-        Layout.preferredHeight: effectiveHeight
-        readonly property int listCap: 420
-        readonly property real effectiveHeight: Updater.packageCount === 0
-            ? (Updater.busy ? 0 : 140)
-            : Math.min(contentHeight, listCap)
-        implicitHeight: effectiveHeight
-        height: effectiveHeight
+        Layout.fillHeight: true
+        Layout.minimumHeight: Updater.packageCount === 0 && !Updater.busy ? 140 : 80
         clip: true
         spacing: 0
         model: Updater.updatesModel

@@ -275,10 +275,10 @@ Kirigami.ApplicationWindow {
                     anchors.top: parent.top
                     anchors.left: parent.left
                     anchors.right: parent.right
+                    anchors.bottom: updatesBottomChrome.top
                     anchors.topMargin: Theme.spacingSmall
                     anchors.leftMargin: Theme.spacingSmall
                     anchors.rightMargin: Theme.spacingSmall
-                    height: implicitHeight
                 }
 
                 ColumnLayout {
@@ -395,13 +395,14 @@ Kirigami.ApplicationWindow {
                     anchors.top: parent.top
                     anchors.left: parent.left
                     anchors.right: parent.right
+                    anchors.bottom: cleanupBottomChrome.top
                     anchors.topMargin: Theme.spacingSmall
                     anchors.leftMargin: Theme.spacingSmall
                     anchors.rightMargin: Theme.spacingSmall
-                    height: implicitHeight
                 }
 
                 ColumnLayout {
+                    id: cleanupBottomChrome
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
