@@ -104,7 +104,11 @@ TrayController::TrayController(UpdateController *updater, SettingsController *se
             });
 }
 
-TrayController::~TrayController() = default;
+TrayController::~TrayController()
+{
+    // QSystemTrayIcon does not take ownership of its context menu.
+    delete m_menu;
+}
 
 bool TrayController::available() const
 {

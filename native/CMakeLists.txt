@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.6 REQUIRED COMPONENTS
-    Core Gui Widgets Qml Quick QuickControls2 Network)
+    Core Gui Widgets Qml Quick QuickControls2 Network Concurrent)
 find_package(KF6Kirigami REQUIRED)
 find_package(KF6KirigamiPlatform REQUIRED)
 
@@ -87,6 +87,7 @@ target_link_libraries(cachyos-updater PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::Network
+    Qt6::Concurrent
     KF6::Kirigami
     KF6::KirigamiPlatform
 )

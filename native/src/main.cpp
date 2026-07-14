@@ -121,6 +121,10 @@ int main(int argc, char *argv[])
                 app.exit(count > 0 ? 100 : 0);
             });
         });
+        // Safety net: never let a headless --check run hang forever (e.g. a
+        // stalled network probe). If checkFinished has already fired, the app
+        // is gone and this no-ops.
+        QTimer::singleShot(180000, &app, [&app]() { app.exit(0); });
         updater.check();
         return app.exec();
     }

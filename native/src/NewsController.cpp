@@ -2,6 +2,7 @@
 
 #include "SettingsController.h"
 
+#include <QDate>
 #include <QDateTime>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -289,7 +290,9 @@ bool NewsController::checkArchGate(SettingsController *settings, QString *text)
         return false;
 
     QStringList pending;
-    const QDateTime cutoff = QDateTime::currentDateTimeUtc().addDays(-14);
+    // Compare date-only values so the 14-day window doesn't drift by a day
+    // depending on the local timezone (published is a bare yyyy-MM-dd).
+    const QDate cutoff = QDate::currentDate().addDays(-14);
     for (int i = 0; i < m_model->rowCount(); ++i) {
         const NewsItem n = m_model->at(i);
         if (n.source != QLatin1String("Arch"))
@@ -297,8 +300,8 @@ bool NewsController::checkArchGate(SettingsController *settings, QString *text)
         const QString key = n.title.trimmed();
         if (key.isEmpty() || settings->isArchNewsAcknowledged(key))
             continue;
-        QDateTime dt = QDateTime::fromString(n.published, QStringLiteral("yyyy-MM-dd"));
-        if (!dt.isValid() || dt < cutoff)
+        const QDate d = QDate::fromString(n.published, QStringLiteral("yyyy-MM-dd"));
+        if (!d.isValid() || d < cutoff)
             continue;
         pending << QStringLiteral("• %1 (%2)").arg(n.title, n.published);
     }

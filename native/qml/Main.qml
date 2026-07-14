@@ -60,7 +60,17 @@ Kirigami.ApplicationWindow {
     }
 
     Shortcut { sequence: "R"; onActivated: if (!Updater.busy) Updater.check() }
-    Shortcut { sequence: "Ctrl+A"; onActivated: Updater.setAllSelected(true) }
+    Shortcut {
+        sequence: "Ctrl+A"
+        onActivated: {
+            // Don't hijack select-all while typing in a text field.
+            const f = root.activeFocusItem
+            if (f && (f instanceof TextInput || f instanceof TextEdit
+                      || (f.text !== undefined && f.cursorPosition !== undefined)))
+                return
+            Updater.setAllSelected(true)
+        }
+    }
     Shortcut { sequence: "Ctrl+Return"; onActivated: {
         if (!Updater.busy && Updater.selectedCount > 0) {
             confirmDialog.plannedCmds = Updater.plannedCommands()

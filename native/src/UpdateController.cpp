@@ -40,8 +40,13 @@ UpdateController::UpdateController(SettingsController *settings,
     m_kernelProxy = new PkgFilterProxy(true, this);
     m_kernelProxy->setSourceModel(m_model);
 
-    connect(m_model, &UpdatesModel::selectionChanged, this,
-            &UpdateController::selectionChanged);
+    connect(m_model, &UpdatesModel::selectionChanged, this, [this]() {
+        // Recompute reboot / NVIDIA-kernel warnings whenever the selection
+        // changes (manual checkbox toggles, select-all, per-source selects),
+        // not just at check/apply time — otherwise the banners go stale.
+        updateSafetyFlags();
+        emit selectionChanged();
+    });
     refreshKernelInfo();
 }
 
@@ -455,6 +460,12 @@ void UpdateController::loadCachedCheck()
 {
     if (!loadCachedCheckData()) {
         emitLine(QStringLiteral("No cached check results."), QStringLiteral("warn"));
+        // Still signal completion so the --check CLI / systemd path can exit
+        // instead of hanging on a checkFinished that never arrives.
+        setBusy(false);
+        setStatus(QStringLiteral("No cached results available."), QStringLiteral("idle"));
+        emit updatesChanged();
+        emit checkFinished();
         return;
     }
     finalizeCheck();
@@ -1085,7 +1096,9 @@ void UpdateController::runNextGroup()
                                               : QStringLiteral("-Syu"))
              << QStringLiteral("--noconfirm");
         args += pacmanBandwidthArgs();
-        if (!deselectedRepo.isEmpty() && !m_singleSourceRun) {
+        // Honor deselected repo packages via --ignore for both full and
+        // per-source ("Update REPO") runs, matching AUR/Flatpak behavior.
+        if (!deselectedRepo.isEmpty()) {
             args << QStringLiteral("--ignore") << deselectedRepo.join(QLatin1Char(','));
         }
         setStage(QStringLiteral("Sync"), 0.15);

@@ -10,6 +10,13 @@ ColumnLayout {
 
     property int selectedIndex: 0
 
+    // Reset the preview selection when the feed reloads so we never point past
+    // the end of a shorter list (blank preview).
+    Connections {
+        target: News
+        function onChanged() { page.selectedIndex = 0 }
+    }
+
     Banner { text: News.warningText }
 
     RowLayout {

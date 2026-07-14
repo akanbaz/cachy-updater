@@ -6,8 +6,10 @@
 #include "SettingsController.h"
 
 #include <QDir>
+#include <QFutureWatcher>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QtConcurrent>
 #include <memory>
 
 namespace {
@@ -175,6 +177,12 @@ void MaintainController::runStreaming(const QString &program,
 void MaintainController::scan()
 {
     m_warnings.clear();
+    // Reset counters so stale values don't linger if an optional tool went away
+    // between scans; each async probe below repopulates what it can.
+    m_flatpakUnused = 0;
+    m_aurCacheCount = 0;
+    m_cacheOld = 0;
+    m_cacheUninstalled = 0;
 
     incInflight(1);
     runQuiet(QStringLiteral("pacman"), {QStringLiteral("-Qtdq")},
@@ -268,6 +276,11 @@ void MaintainController::scan()
                      incInflight(-1);
                  });
     }
+
+    // Ensure the disk summary is populated even when no optional tool
+    // (flatpak / paccache / AUR helper) triggered an async update.
+    updateDiskSummary();
+    emit changed();
 }
 
 void MaintainController::updateDiskSummary()
@@ -323,6 +336,9 @@ void MaintainController::cleanCache()
                   QString::number(keepOld())},
                  [this](int code) {
                      if (code != 0) {
+                         emitLine(QStringLiteral("Cache cleanup failed (exit code %1).")
+                                      .arg(code),
+                                  QStringLiteral("error"));
                          setBusy(false);
                          scan();
                          return;
@@ -415,20 +431,28 @@ void MaintainController::cleanAurCache()
     emitLine(QStringLiteral("$ cleaning %1 build cache in ~/.cache/%1")
                  .arg(aur),
              QStringLiteral("cmd"));
-    const bool ok = removeAurCacheEntries(aur);
-    m_aurCacheCount = countAurCacheEntries(aur);
-    updateDiskSummary();
-    if (ok && m_aurCacheCount == 0)
-        emitLine(QStringLiteral("AUR cache cleaned."), QStringLiteral("ok"));
-    else if (!ok)
-        emitLine(QStringLiteral("Some AUR cache entries could not be removed."),
-                 QStringLiteral("warn"));
-    else
-        emitLine(QStringLiteral("AUR cache partially cleaned (%1 entries remain).")
-                     .arg(m_aurCacheCount),
-                 QStringLiteral("warn"));
-    emit changed();
-    setBusy(false);
+
+    // Removal can touch thousands of files; run it off the UI thread so the
+    // window doesn't freeze on a large cache.
+    auto *watcher = new QFutureWatcher<bool>(this);
+    connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher, aur]() {
+        const bool ok = watcher->result();
+        watcher->deleteLater();
+        m_aurCacheCount = countAurCacheEntries(aur);
+        updateDiskSummary();
+        if (ok && m_aurCacheCount == 0)
+            emitLine(QStringLiteral("AUR cache cleaned."), QStringLiteral("ok"));
+        else if (!ok)
+            emitLine(QStringLiteral("Some AUR cache entries could not be removed."),
+                     QStringLiteral("warn"));
+        else
+            emitLine(QStringLiteral("AUR cache partially cleaned (%1 entries remain).")
+                         .arg(m_aurCacheCount),
+                     QStringLiteral("warn"));
+        emit changed();
+        setBusy(false);
+    });
+    watcher->setFuture(QtConcurrent::run([aur]() { return removeAurCacheEntries(aur); }));
 }
 
 void MaintainController::cancel()
