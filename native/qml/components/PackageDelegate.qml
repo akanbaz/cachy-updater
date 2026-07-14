@@ -62,6 +62,17 @@ Item {
                 font.weight: Font.DemiBold
             }
 
+            Kirigami.Icon {
+                visible: model.lockedGroup
+                source: "link"
+                implicitWidth: 13
+                implicitHeight: 13
+                color: Theme.textMuted
+                HoverHandler { id: linkHover }
+                QQC2.ToolTip.text: "Version-locked — updates together with its related packages"
+                QQC2.ToolTip.visible: linkHover.hovered
+            }
+
             QQC2.Label {
                 text: model.oldVersion + "  \u2192  "
                 color: Theme.textMuted

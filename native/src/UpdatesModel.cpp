@@ -45,6 +45,9 @@ QVariant UpdatesModel::data(const QModelIndex &index, int role) const
     case SelectedRole: return p.selected;
     case HeldRole: return p.held;
     case FlatpakKindRole: return p.flatpakKind;
+    case LockedGroupRole:
+        return p.source == Source::Repo && !p.pkgbase.isEmpty()
+               && m_lockedBases.contains(p.pkgbase);
     default: return {};
     }
 }
@@ -55,14 +58,41 @@ bool UpdatesModel::setData(const QModelIndex &index, const QVariant &value,
     if (!index.isValid() || index.row() < 0 || index.row() >= m_items.size())
         return false;
     if (role == SelectedRole) {
-        if (m_items[index.row()].held)
+        Pkg &target = m_items[index.row()];
+        if (target.held)
             return false;
         const bool sel = value.toBool();
-        if (m_items[index.row()].selected == sel)
+
+        // Version-locked split packages (same pkgbase) toggle as one unit, so
+        // the selection can never produce a broken partial upgrade.
+        const bool locked = target.source == Source::Repo
+                            && m_lockedBases.contains(target.pkgbase);
+        if (!locked) {
+            if (target.selected == sel)
+                return true;
+            target.selected = sel;
+            emit dataChanged(index, index, {SelectedRole});
+            emit selectionChanged();
             return true;
-        m_items[index.row()].selected = sel;
-        emit dataChanged(index, index, {SelectedRole});
-        emit selectionChanged();
+        }
+
+        int lo = -1, hi = -1;
+        bool any = false;
+        for (int i = 0; i < m_items.size(); ++i) {
+            Pkg &p = m_items[i];
+            if (p.source != Source::Repo || p.pkgbase != target.pkgbase || p.held)
+                continue;
+            if (p.selected != sel) {
+                p.selected = sel;
+                any = true;
+            }
+            lo = (lo < 0) ? i : qMin(lo, i);
+            hi = qMax(hi, i);
+        }
+        if (any) {
+            emit dataChanged(this->index(lo), this->index(hi), {SelectedRole});
+            emit selectionChanged();
+        }
         return true;
     }
     return false;
@@ -95,6 +125,7 @@ QHash<int, QByteArray> UpdatesModel::roleNames() const
         {SelectedRole, "selected"},
         {HeldRole, "held"},
         {FlatpakKindRole, "flatpakKind"},
+        {LockedGroupRole, "lockedGroup"},
     };
 }
 
@@ -102,8 +133,40 @@ void UpdatesModel::setItems(const QVector<Pkg> &items)
 {
     beginResetModel();
     m_items = items;
+    recomputeLockedBases();
     endResetModel();
     emit selectionChanged();
+}
+
+void UpdatesModel::recomputeLockedBases()
+{
+    QHash<QString, int> counts;
+    for (const Pkg &p : m_items)
+        if (p.source == Source::Repo && !p.pkgbase.isEmpty())
+            ++counts[p.pkgbase];
+    m_lockedBases.clear();
+    for (auto it = counts.cbegin(); it != counts.cend(); ++it)
+        if (it.value() > 1)
+            m_lockedBases.insert(it.key());
+}
+
+bool UpdatesModel::enforceLockedGroups()
+{
+    // If any member of a locked group is selected, select all its (unheld)
+    // members so a split package never ends up half-upgraded.
+    QSet<QString> selectedBases;
+    for (const Pkg &p : m_items)
+        if (p.source == Source::Repo && p.selected
+            && m_lockedBases.contains(p.pkgbase))
+            selectedBases.insert(p.pkgbase);
+    bool changed = false;
+    for (Pkg &p : m_items)
+        if (p.source == Source::Repo && !p.held && !p.selected
+            && selectedBases.contains(p.pkgbase)) {
+            p.selected = true;
+            changed = true;
+        }
+    return changed;
 }
 
 void UpdatesModel::setAllSelected(bool selected)
@@ -155,6 +218,8 @@ void UpdatesModel::selectBySeverity(int minSeverity)
             any = true;
         }
     }
+    // A locked group whose members span severities must not be split.
+    any = enforceLockedGroups() || any;
     if (any) {
         emit dataChanged(index(0), index(m_items.size() - 1), {SelectedRole});
         emit selectionChanged();

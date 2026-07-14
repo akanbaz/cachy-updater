@@ -432,6 +432,7 @@ void UpdateController::saveCachedCheck()
         o.insert(QStringLiteral("new"), p.newVersion);
         o.insert(QStringLiteral("source"), sourceKey(p.source));
         o.insert(QStringLiteral("flatpakId"), p.flatpakId);
+        o.insert(QStringLiteral("pkgbase"), p.pkgbase);
         arr.append(o);
     }
     QJsonObject root;
@@ -467,6 +468,7 @@ bool UpdateController::loadCachedCheckData()
         else
             p.source = Source::Repo;
         p.flatpakId = o.value(QStringLiteral("flatpakId")).toString();
+        p.pkgbase = o.value(QStringLiteral("pkgbase")).toString();
         p.selected = true;
         m_collect << p;
     }
@@ -743,8 +745,9 @@ void UpdateController::enrich()
     }
 
     QStringList args;
+    // Trailing %e (pkgbase) lets us group version-locked split packages.
     args << QStringLiteral("-S")
-         << QStringLiteral("%n\t%r\t%k\t%m\t%G\t%d\t%C") << QStringLiteral("--");
+         << QStringLiteral("%n\t%r\t%k\t%m\t%G\t%d\t%C\t%e") << QStringLiteral("--");
     args += repoNames;
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -779,6 +782,7 @@ void UpdateController::enrich()
                         p.groups = groups.split(QLatin1Char(' '), Qt::SkipEmptyParts);
                     p.description = f.value(5).trimmed();
                     p.changelog = f.value(6).trimmed();
+                    p.pkgbase = f.value(7).trimmed();
                 }
                 afterRepo();
             });

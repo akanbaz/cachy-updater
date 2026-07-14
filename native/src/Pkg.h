@@ -14,6 +14,7 @@ struct Pkg {
     QString oldVersion;
     QString newVersion;
     QString repo;
+    QString pkgbase; // split-package source; siblings must upgrade together
     QString description;
     QString summary;
     QString changelog;

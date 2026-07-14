@@ -3,6 +3,7 @@
 #include "Pkg.h"
 
 #include <QAbstractListModel>
+#include <QSet>
 #include <QSortFilterProxyModel>
 #include <QVector>
 
@@ -28,6 +29,7 @@ public:
         SelectedRole,
         HeldRole,
         FlatpakKindRole,
+        LockedGroupRole,
     };
 
     explicit UpdatesModel(QObject *parent = nullptr);
@@ -52,7 +54,14 @@ signals:
     void selectionChanged();
 
 private:
+    // Recompute which pkgbases have >1 updating member (version-locked groups).
+    void recomputeLockedBases();
+    // Keep every locked group all-selected-or-all-deselected after a bulk
+    // change; returns true if it altered any selection.
+    bool enforceLockedGroups();
+
     QVector<cachy::Pkg> m_items;
+    QSet<QString> m_lockedBases;
 };
 
 class PkgFilterProxy : public QSortFilterProxyModel
