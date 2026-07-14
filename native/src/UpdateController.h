@@ -24,6 +24,7 @@ class UpdateController : public QObject
     Q_PROPERTY(int sourceCount READ sourceCount NOTIFY updatesChanged)
     Q_PROPERTY(QString downloadText READ downloadText NOTIFY updatesChanged)
     Q_PROPERTY(int selectedCount READ selectedCount NOTIFY selectionChanged)
+    Q_PROPERTY(bool partialUpgradeWarning READ partialUpgradeWarning NOTIFY selectionChanged)
     Q_PROPERTY(QString warningText READ warningText NOTIFY updatesChanged)
     Q_PROPERTY(QString lastChecked READ lastChecked NOTIFY updatesChanged)
     Q_PROPERTY(QString stage READ stage NOTIFY stageChanged)
@@ -60,6 +61,7 @@ public:
     int sourceCount() const;
     QString downloadText() const;
     int selectedCount() const { return m_model->selectedCount(); }
+    bool partialUpgradeWarning() const;
     QString warningText() const { return m_warnings.join(QStringLiteral("  \u2022  ")); }
     QString lastChecked() const { return m_lastChecked; }
     QString stage() const { return m_stage; }

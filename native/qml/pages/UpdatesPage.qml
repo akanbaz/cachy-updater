@@ -38,6 +38,24 @@ ColumnLayout {
     }
 
     Banner {
+        visible: Updater.partialUpgradeWarning
+        text: "Some repo updates are deselected or held \u2014 this is a partial upgrade. "
+              + "Version-locked packages (gcc, glibc, pipewire, p11-kit\u2026) must upgrade "
+              + "together, so pacman may fail. Apply all repo updates for a safe upgrade."
+        severity: "warn"
+        closable: false
+    }
+
+    RowLayout {
+        visible: Updater.partialUpgradeWarning
+        QQC2.Button {
+            text: "Select all updates"
+            icon.name: "package-install"
+            onClicked: Updater.setAllSelected(true)
+        }
+    }
+
+    Banner {
         visible: Updater.rebootRequired
         text: "A reboot is required after these updates finish."
         severity: "info"

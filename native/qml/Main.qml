@@ -581,6 +581,15 @@ Kirigami.ApplicationWindow {
 
             Banner {
                 Layout.fillWidth: true
+                visible: confirmDialog.applySource !== "flatpak" && Updater.partialUpgradeWarning
+                text: "Partial upgrade: some repo packages are held back. This can fail "
+                      + "on version-locked packages (gcc, glibc, pipewire…)."
+                severity: "warn"
+                closable: false
+            }
+
+            Banner {
+                Layout.fillWidth: true
                 visible: Updater.rebootRequired
                 text: "A reboot will be required afterward."
                 severity: "info"

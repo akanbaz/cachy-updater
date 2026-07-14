@@ -137,6 +137,23 @@ int UpdateController::criticalCount() const
     return n;
 }
 
+bool UpdateController::partialUpgradeWarning() const
+{
+    // A repo upgrade with some packages held back is a "partial upgrade":
+    // pacman only supports upgrading the repo set as a whole, so leaving
+    // version-locked packages behind (gcc-libs, pipewire, p11-kit families…)
+    // can fail dependency resolution. Warn whenever the repo set is split.
+    int repoTotal = 0, repoSelected = 0;
+    for (const Pkg &p : m_model->items()) {
+        if (p.source != Source::Repo)
+            continue;
+        ++repoTotal;
+        if (p.selected)
+            ++repoSelected;
+    }
+    return repoSelected > 0 && repoSelected < repoTotal;
+}
+
 QString UpdateController::sourceCommandFor(const QString &source) const
 {
     if (source == QLatin1String("aur")) {
@@ -1157,7 +1174,7 @@ void UpdateController::runNextGroup()
             setStage(QStringLiteral("Hooks"), 0.75);
     });
     connect(r, &ProcessRunner::finished, this,
-            [this, r](int code, const QString &) {
+            [this, r](int code, const QString &out) {
                 r->deleteLater();
                 if (m_cancelled)
                     return;
@@ -1165,6 +1182,22 @@ void UpdateController::runNextGroup()
                     m_warnings << QStringLiteral("A step exited with code %1.").arg(code);
                     emitLine(QStringLiteral("Step failed with exit code %1.").arg(code),
                              QStringLiteral("error"));
+                    // A dependency-resolution failure here is almost always a
+                    // partial upgrade: deselected/held packages left a
+                    // version-locked group half-upgraded.
+                    if (out.contains(QLatin1String("could not satisfy dependencies"),
+                                     Qt::CaseInsensitive)
+                        || out.contains(QLatin1String("unable to satisfy dependency"),
+                                        Qt::CaseInsensitive)) {
+                        const QString hint = QStringLiteral(
+                            "This is a partial-upgrade conflict: some repo updates "
+                            "were deselected or held, but version-locked packages "
+                            "(e.g. gcc/glibc/pipewire/p11-kit) must upgrade together. "
+                            "Select all repo updates and apply again.");
+                        emitLine(hint, QStringLiteral("warn"));
+                        m_warnings << QStringLiteral(
+                            "Partial upgrade failed — apply all repo updates together.");
+                    }
                     finishRun(false);
                     return;
                 }
