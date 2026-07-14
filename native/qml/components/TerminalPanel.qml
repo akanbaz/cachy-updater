@@ -115,9 +115,8 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.max(0, term.expandedHeight - term.barHeight)
             clip: true
-            // Ensure scrollbars appear when content overflows.
-            ScrollBar.horizontal.policy: QQC2.ScrollBar.AsNeeded
-            ScrollBar.vertical.policy: QQC2.ScrollBar.AsNeeded
+            QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AsNeeded
+            QQC2.ScrollBar.vertical.policy: QQC2.ScrollBar.AsNeeded
 
             QQC2.TextArea {
                 id: area
