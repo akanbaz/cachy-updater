@@ -110,12 +110,49 @@ ColumnLayout {
             onActivated: Updater.setSortMode(currentIndex)
         }
 
+        QQC2.Button {
+            text: "Important only"
+            flat: true
+            opacity: Updater.packageCount > 0 ? 1.0 : 0.0
+            enabled: Updater.packageCount > 0 && !Updater.busy
+            onClicked: Updater.selectImportant()
+            QQC2.ToolTip.text: "Select only important and critical updates"
+            QQC2.ToolTip.visible: hovered
+        }
+
         QQC2.CheckBox {
             text: "Select all"
             opacity: Updater.packageCount > 0 ? 1.0 : 0.0
             enabled: Updater.packageCount > 0 && !Updater.busy
             checked: Updater.selectedCount === Updater.packageCount && Updater.packageCount > 0
             onToggled: Updater.setAllSelected(checked)
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingSmall
+        visible: Updater.packageCount > 0
+                 && (Updater.searchText.length > 0
+                     || Updater.minSeverity > 0
+                     || Updater.sourceFilter.length > 0)
+
+        QQC2.Label {
+            Layout.fillWidth: true
+            text: "Showing " + list.count + " of " + Updater.packageCount + " packages"
+            color: Theme.textMuted
+            font.family: Theme.sansFamily
+            font.pixelSize: 12
+        }
+        QQC2.Button {
+            text: "Clear filters"
+            flat: true
+            icon.name: "edit-clear"
+            onClicked: {
+                Updater.searchText = ""
+                Updater.minSeverity = 0
+                Updater.sourceFilter = ""
+            }
         }
     }
     }

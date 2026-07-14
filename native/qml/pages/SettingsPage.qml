@@ -141,11 +141,49 @@ Flickable {
             ColumnLayout {
                 spacing: Theme.spacing
                 QQC2.Label { text: "Held packages"; font.weight: Font.DemiBold; font.pixelSize: 15 }
+
                 QQC2.Label {
-                    text: Settings.holdPackages.length > 0 ? Settings.holdPackages.join(", ") : "No held packages"
+                    visible: Settings.holdPackages.length === 0
+                    text: "No held packages"
                     color: Theme.textMuted
-                    wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    visible: Settings.holdPackages.length > 0
+
+                    Repeater {
+                        model: Settings.holdPackages
+                        delegate: RowLayout {
+                            required property string modelData
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSmall
+
+                            Kirigami.Icon {
+                                source: "object-locked"
+                                implicitWidth: 16
+                                implicitHeight: 16
+                                color: Theme.textMuted
+                            }
+                            QQC2.Label {
+                                text: modelData
+                                color: Theme.text
+                                font.family: Theme.monoFamily
+                                font.pixelSize: 12
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
+                            QQC2.ToolButton {
+                                icon.name: "object-unlocked"
+                                flat: true
+                                onClicked: Updater.unholdPackage(modelData)
+                                QQC2.ToolTip.text: "Unhold " + modelData
+                                QQC2.ToolTip.visible: hovered
+                            }
+                        }
+                    }
                 }
                 RowLayout {
                     QQC2.TextField {

@@ -91,6 +91,15 @@ public:
     Q_INVOKABLE void downloadOnly();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void setAllSelected(bool selected) { m_model->setAllSelected(selected); }
+    Q_INVOKABLE void selectImportant()
+    {
+        m_model->selectBySeverity(static_cast<int>(cachy::Severity::Important));
+    }
+    Q_INVOKABLE void applySource(const QString &source);
+    Q_INVOKABLE void requestSourceApply(const QString &source)
+    {
+        emit sourceApplyRequested(source);
+    }
     Q_INVOKABLE void setSearchText(const QString &text);
     Q_INVOKABLE void setMinSeverity(int severity);
     Q_INVOKABLE void setSourceFilter(const QString &source);
@@ -125,6 +134,7 @@ signals:
     void kernelInfoChanged();
     void filtersChanged();
     void notifyRequested(const QString &title, const QString &body);
+    void sourceApplyRequested(const QString &source);
 
 private:
     enum class Mode { Apply, DryRun, DownloadOnly };

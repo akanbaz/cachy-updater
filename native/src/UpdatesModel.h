@@ -44,6 +44,7 @@ public:
 
     void setAllSelected(bool selected);
     void selectSource(cachy::Source source, bool selected);
+    void selectBySeverity(int minSeverity);
     int selectedCount() const;
     int selectedCountFor(cachy::Source source) const;
 

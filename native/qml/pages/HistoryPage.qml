@@ -5,7 +5,25 @@ import org.kde.kirigami as Kirigami
 import org.cachyos.updater
 
 ColumnLayout {
+    id: historyRoot
     spacing: Theme.spacing
+
+    function relativeTime(iso) {
+        if (!iso)
+            return ""
+        const then = new Date(iso)
+        if (isNaN(then.getTime()))
+            return iso
+        const secs = Math.floor((Date.now() - then.getTime()) / 1000)
+        if (secs < 60) return "just now"
+        const mins = Math.floor(secs / 60)
+        if (mins < 60) return mins + (mins === 1 ? " min ago" : " mins ago")
+        const hrs = Math.floor(mins / 60)
+        if (hrs < 24) return hrs + (hrs === 1 ? " hour ago" : " hours ago")
+        const days = Math.floor(hrs / 24)
+        if (days < 30) return days + (days === 1 ? " day ago" : " days ago")
+        return Qt.formatDate(then, "yyyy-MM-dd")
+    }
 
     RowLayout {
         Layout.fillWidth: true
@@ -37,6 +55,11 @@ ColumnLayout {
             color: Theme.surface
             implicitHeight: row.implicitHeight + Theme.spacingSmall * 2
 
+            HoverHandler { id: histHover }
+            // Full ISO timestamp on hover; the row shows a friendly relative time.
+            QQC2.ToolTip.text: model.timestamp
+            QQC2.ToolTip.visible: histHover.hovered && model.timestamp.length > 0
+
             RowLayout {
                 id: row
                 anchors.fill: parent
@@ -51,7 +74,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
                     QQC2.Label {
-                        text: model.action + "  \u00b7  " + model.timestamp
+                        text: model.action + "  \u00b7  " + historyRoot.relativeTime(model.timestamp)
                         font.weight: Font.DemiBold
                         font.pixelSize: 13
                     }

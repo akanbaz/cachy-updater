@@ -72,11 +72,9 @@ Item {
             text: "Update"
             flat: true
             enabled: !Updater.busy && Updater.sourceCountFor(header.section) > 0
-            onClicked: {
-                if (header.section === "repo") Updater.applyRepo()
-                else if (header.section === "aur") Updater.applyAur()
-                else Updater.applyFlatpak()
-            }
+            // Confirm through the shared dialog (handled in Main.qml) instead of
+            // applying immediately on a single click.
+            onClicked: Updater.requestSourceApply(header.section)
         }
     }
 }

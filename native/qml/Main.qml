@@ -73,6 +73,7 @@ Kirigami.ApplicationWindow {
     }
     Shortcut { sequence: "Ctrl+Return"; onActivated: {
         if (!Updater.busy && Updater.selectedCount > 0) {
+            confirmDialog.applySource = ""
             confirmDialog.plannedCmds = Updater.plannedCommands()
             confirmDialog.open()
         }
@@ -84,6 +85,11 @@ Kirigami.ApplicationWindow {
             if (f && (f instanceof TextInput || f instanceof TextEdit
                       || (f.text !== undefined && f.cursorPosition !== undefined))) {
                 root.forceActiveFocus()
+                return
+            }
+            // Guard against interrupting a running privileged transaction.
+            if (Updater.busy || Maintain.busy || Firmware.busy) {
+                cancelDialog.open()
                 return
             }
             Updater.cancel()
@@ -299,6 +305,48 @@ Kirigami.ApplicationWindow {
                     width: parent.width
                     spacing: 0
 
+                    Rectangle {
+                        Layout.fillWidth: true
+                        color: Theme.deepBg
+                        visible: Updater.busy
+                        implicitHeight: visible ? progressRow.implicitHeight + Theme.spacingSmall : 0
+
+                        RowLayout {
+                            id: progressRow
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: Theme.spacing
+                            anchors.rightMargin: Theme.spacing
+                            spacing: Theme.spacingSmall
+
+                            QQC2.Label {
+                                text: Updater.statusState === "checking" ? "Checking…" : Updater.stage
+                                color: Theme.cyan
+                                font.family: Theme.sansFamily
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                                Layout.minimumWidth: 80
+                            }
+                            QQC2.ProgressBar {
+                                Layout.fillWidth: true
+                                // Check has no meaningful fraction; show it as motion.
+                                indeterminate: Updater.progress <= 0
+                                from: 0; to: 1
+                                value: Updater.progress
+                            }
+                            QQC2.Label {
+                                visible: Updater.progress > 0
+                                text: Math.round(Updater.progress * 100) + "%"
+                                color: Theme.textMuted
+                                font.family: Theme.monoFamily
+                                font.pixelSize: 12
+                                Layout.minimumWidth: 38
+                                horizontalAlignment: Text.AlignRight
+                            }
+                        }
+                    }
+
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
 
                     TerminalPanel {
@@ -328,6 +376,17 @@ Kirigami.ApplicationWindow {
                                 icon.name: "view-refresh"
                                 enabled: !Updater.busy
                                 onClicked: Updater.check()
+                                QQC2.ToolTip.text: "Refresh (R)"
+                                QQC2.ToolTip.visible: hovered
+                            }
+
+                            QQC2.Button {
+                                text: "Cancel"
+                                icon.name: "process-stop"
+                                visible: Updater.busy
+                                onClicked: cancelDialog.open()
+                                QQC2.ToolTip.text: "Stop the current operation (Esc)"
+                                QQC2.ToolTip.visible: hovered
                             }
 
                             QQC2.Label {
@@ -367,9 +426,12 @@ Kirigami.ApplicationWindow {
                                 text: "Apply " + Updater.selectedCount + " update" + (Updater.selectedCount === 1 ? "" : "s")
                                 enabled: !Updater.busy && Updater.selectedCount > 0 && !Updater.archNewsBlocked
                                 onClicked: {
+                                    confirmDialog.applySource = ""
                                     confirmDialog.plannedCmds = Updater.plannedCommands()
                                     confirmDialog.open()
                                 }
+                                QQC2.ToolTip.text: "Apply selected updates (Ctrl+Enter)"
+                                QQC2.ToolTip.visible: hovered
 
                                 contentItem: QQC2.Label {
                                     text: applyButton.text
@@ -455,18 +517,33 @@ Kirigami.ApplicationWindow {
 
     Kirigami.PromptDialog {
         id: confirmDialog
-        title: "Apply updates?"
+        title: applySource === "" ? "Apply updates?"
+             : applySource === "aur" ? "Update AUR packages?"
+             : applySource === "flatpak" ? "Update Flatpaks?"
+             : "Update repo packages?"
         preferredWidth: Kirigami.Units.gridUnit * 30
         standardButtons: Kirigami.Dialog.NoButton
         property string plannedCmds: ""
+        // "" = apply everything selected; otherwise a single source (repo/aur/flatpak).
+        property string applySource: ""
 
-        onOpened: plannedCmds = Updater.plannedCommands()
+        onOpened: plannedCmds = applySource === ""
+                  ? Updater.plannedCommands()
+                  : Updater.sourceCommandFor(applySource)
+        onClosed: applySource = ""
 
         customFooterActions: [
             Kirigami.Action { text: "Cancel"; onTriggered: confirmDialog.close() },
             Kirigami.Action {
                 text: "Apply"
-                onTriggered: { confirmDialog.close(); Updater.apply() }
+                onTriggered: {
+                    const src = confirmDialog.applySource
+                    confirmDialog.close()
+                    if (src === "")
+                        Updater.apply()
+                    else
+                        Updater.applySource(src)
+                }
             }
         ]
 
@@ -523,11 +600,35 @@ Kirigami.ApplicationWindow {
         ]
     }
 
+    Kirigami.PromptDialog {
+        id: cancelDialog
+        title: "Stop the current operation?"
+        subtitle: "A package operation is running. Interrupting it partway can "
+                  + "leave the transaction incomplete."
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action { text: "Keep running"; onTriggered: cancelDialog.close() },
+            Kirigami.Action {
+                text: "Stop"
+                onTriggered: {
+                    cancelDialog.close()
+                    Updater.cancel()
+                    Maintain.cancel()
+                    Firmware.cancel()
+                }
+            }
+        ]
+    }
+
     Connections {
         target: Updater
         function onApplyFinished(ok) {
             if (ok && Updater.rebootRequired)
                 rebootDialog.open()
+        }
+        function onSourceApplyRequested(source) {
+            confirmDialog.applySource = source
+            confirmDialog.open()
         }
     }
 }

@@ -73,8 +73,12 @@ Rectangle {
                 term.expanded = true
         }
         function onBusyChanged() {
-            if (term.controller && term.controller.busy)
+            if (term.controller && term.controller.busy) {
                 term.clear()
+                // Surface the live output as soon as an action starts, instead
+                // of leaving the user staring at a spinner over a collapsed panel.
+                term.expanded = true
+            }
         }
     }
 

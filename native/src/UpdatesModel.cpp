@@ -143,6 +143,24 @@ void UpdatesModel::selectSource(Source source, bool selected)
     }
 }
 
+void UpdatesModel::selectBySeverity(int minSeverity)
+{
+    bool any = false;
+    for (Pkg &p : m_items) {
+        if (p.held)
+            continue;
+        const bool want = static_cast<int>(p.severity) >= minSeverity;
+        if (p.selected != want) {
+            p.selected = want;
+            any = true;
+        }
+    }
+    if (any) {
+        emit dataChanged(index(0), index(m_items.size() - 1), {SelectedRole});
+        emit selectionChanged();
+    }
+}
+
 int UpdatesModel::selectedCount() const
 {
     int n = 0;

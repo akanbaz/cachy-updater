@@ -935,6 +935,15 @@ QString UpdateController::plannedCommands() const
 }
 
 void UpdateController::apply() { beginRun(Mode::Apply); }
+void UpdateController::applySource(const QString &source)
+{
+    if (source == QLatin1String("aur"))
+        applyAur();
+    else if (source == QLatin1String("flatpak"))
+        applyFlatpak();
+    else
+        applyRepo();
+}
 void UpdateController::applyRepo() { beginRun(Mode::Apply, Source::Repo, true); }
 void UpdateController::applyAur() { beginRun(Mode::Apply, Source::Aur, true); }
 void UpdateController::applyFlatpak() { beginRun(Mode::Apply, Source::Flatpak, true); }
