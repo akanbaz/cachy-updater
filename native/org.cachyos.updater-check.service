@@ -1,7 +1,11 @@
 [Unit]
 Description=CachyOS Updater scheduled check
+After=graphical-session.target network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
+# Flatpak needs a session bus; skip quietly if unavailable.
 ExecStart=/usr/bin/env cachyos-updater --check --notify
+TimeoutStartSec=300

@@ -29,6 +29,7 @@ public:
 
     void setItems(const QVector<HistoryEntry> &items);
     void prepend(const HistoryEntry &entry);
+    void trimTo(int maxEntries);
 
 private:
     QVector<HistoryEntry> m_items;

@@ -3,8 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.cachyos.updater
-import "pages"
-import "components"
 
 Kirigami.ApplicationWindow {
     id: root
@@ -69,7 +67,20 @@ Kirigami.ApplicationWindow {
             confirmDialog.open()
         }
     } }
-    Shortcut { sequence: "Escape"; onActivated: Updater.cancel() }
+    Shortcut {
+        sequence: "Escape"
+        onActivated: {
+            const f = root.activeFocusItem
+            if (f && (f instanceof TextInput || f instanceof TextEdit
+                      || (f.text !== undefined && f.cursorPosition !== undefined))) {
+                root.forceActiveFocus()
+                return
+            }
+            Updater.cancel()
+            Maintain.cancel()
+            Firmware.cancel()
+        }
+    }
 
     pageStack.initialPage: Kirigami.Page {
         padding: 0
@@ -98,8 +109,8 @@ Kirigami.ApplicationWindow {
 
                         Kirigami.Icon {
                             source: root.tabs[root.currentTab].icon
-                            implicitWidth: 32
-                            implicitHeight: 32
+                            implicitWidth: Theme.iconLarge
+                            implicitHeight: Theme.iconLarge
                             color: Theme.cyan
                             Layout.alignment: Qt.AlignTop
                             Layout.topMargin: 4

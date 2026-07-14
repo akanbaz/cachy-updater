@@ -195,10 +195,10 @@ void MaintainController::scan()
                  incInflight(-1);
              });
 
-    const QString running = cachy::helpers::runningKernel();
+    const QString runningPkg = cachy::helpers::runningKernelPkgbase();
     incInflight(1);
     runQuiet(QStringLiteral("pacman"), {QStringLiteral("-Qsq"), QStringLiteral("linux")},
-             [this, running](int, const QString &out) {
+             [this, runningPkg](int, const QString &out) {
                  m_oldKernels.clear();
                  const QList<QStringView> lines =
                      QStringView(out).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
@@ -206,8 +206,14 @@ void MaintainController::scan()
                      const QString name = l.trimmed().toString();
                      if (!cachy::classifier::isBootableKernelPackage(name))
                          continue;
-                     if (!running.contains(name, Qt::CaseInsensitive))
-                         m_oldKernels << name;
+                     // Never offer to remove the currently running kernel package.
+                     if (!runningPkg.isEmpty()
+                         && name.compare(runningPkg, Qt::CaseInsensitive) == 0)
+                         continue;
+                     // Fallback when pkgbase is missing: keep all if we cannot tell.
+                     if (runningPkg.isEmpty())
+                         continue;
+                     m_oldKernels << name;
                  }
                  emit changed();
                  incInflight(-1);
@@ -282,12 +288,17 @@ void MaintainController::removeOrphans()
         emitLine(QStringLiteral("No orphan packages to remove."), QStringLiteral("warn"));
         return;
     }
+    if (cachy::helpers::pacmanDbLocked()) {
+        emitLine(QStringLiteral("Pacman database is locked — try again later."),
+                 QStringLiteral("error"));
+        return;
+    }
     if (which(QStringLiteral("pkexec")).isEmpty()) {
         emitLine(QStringLiteral("pkexec required."), QStringLiteral("error"));
         return;
     }
     setBusy(true);
-    QStringList args{QStringLiteral("pacman"), QStringLiteral("-Rns"),
+    QStringList args{QStringLiteral("/usr/bin/pacman"), QStringLiteral("-Rns"),
                      QStringLiteral("--noconfirm"), QStringLiteral("--")};
     args += m_orphans;
     runStreaming(QStringLiteral("pkexec"), args, [this](int code) {
@@ -333,8 +344,13 @@ void MaintainController::removeOldKernels()
 {
     if (m_busy || m_oldKernels.isEmpty())
         return;
+    if (cachy::helpers::pacmanDbLocked()) {
+        emitLine(QStringLiteral("Pacman database is locked — try again later."),
+                 QStringLiteral("error"));
+        return;
+    }
     setBusy(true);
-    QStringList args{QStringLiteral("pacman"), QStringLiteral("-Rns"),
+    QStringList args{QStringLiteral("/usr/bin/pacman"), QStringLiteral("-Rns"),
                      QStringLiteral("--noconfirm"), QStringLiteral("--")};
     args += m_oldKernels;
     runStreaming(QStringLiteral("pkexec"), args, [this](int code) {
@@ -413,4 +429,13 @@ void MaintainController::cleanAurCache()
                  QStringLiteral("warn"));
     emit changed();
     setBusy(false);
+}
+
+void MaintainController::cancel()
+{
+    ProcessRunner::stopAll(this);
+    if (m_busy) {
+        setBusy(false);
+        emitLine(QStringLiteral("Cancelled."), QStringLiteral("warn"));
+    }
 }

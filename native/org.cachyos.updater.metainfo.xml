@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.cachyos.updater</id>
+  <name>Cachy Updater</name>
+  <summary>Fast native system updater for CachyOS</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer_name>CachyOS</developer_name>
+  <description>
+    <p>
+      Cachy Updater checks and applies repository, AUR, and Flatpak updates with a
+      Kirigami desktop UI, tray applet, news gate, cleanup tools, and firmware support.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.cachyos.updater.desktop</launchable>
+  <url type="homepage">https://cachyos.org</url>
+  <url type="bugtracker">https://github.com/akanbaz/cachy-updater/issues</url>
+  <provides>
+    <binary>cachyos-updater</binary>
+  </provides>
+  <categories>
+    <category>System</category>
+    <category>PackageManager</category>
+    <category>Settings</category>
+  </categories>
+  <keywords>
+    <keyword>update</keyword>
+    <keyword>pacman</keyword>
+    <keyword>paru</keyword>
+    <keyword>flatpak</keyword>
+    <keyword>cachyos</keyword>
+  </keywords>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.1.0" date="2026-07-14" />
+  </releases>
+</component>

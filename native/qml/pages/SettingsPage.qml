@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.cachyos.updater
-import "../components"
 
 Flickable {
     contentWidth: width
@@ -21,6 +20,13 @@ Flickable {
             ColumnLayout {
                 spacing: Theme.spacing
                 QQC2.Label { text: "General"; font.weight: Font.DemiBold; font.pixelSize: 15 }
+
+                Banner {
+                    visible: Settings.configWarning.length > 0
+                    text: Settings.configWarning
+                    severity: "warn"
+                    closable: false
+                }
 
                 RowLayout {
                     QQC2.Label { text: "Default tab"; Layout.fillWidth: true }
@@ -146,6 +152,10 @@ Flickable {
                         id: holdField
                         Layout.fillWidth: true
                         placeholderText: "Package name"
+                        Keys.onEscapePressed: (event) => {
+                            focus = false
+                            event.accepted = true
+                        }
                     }
                     QQC2.Button {
                         text: "Hold"

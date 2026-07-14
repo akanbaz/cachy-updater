@@ -78,6 +78,24 @@ void ProcessRunner::stop()
     }
 }
 
+void ProcessRunner::stopAll(QObject *root)
+{
+    if (!root)
+        return;
+    const auto runners = root->findChildren<ProcessRunner *>();
+    for (ProcessRunner *r : runners)
+        r->stop();
+    if (auto *self = qobject_cast<ProcessRunner *>(root))
+        self->stop();
+}
+
+void ProcessRunner::trimAccumulated()
+{
+    if (m_accumulated.size() <= kMaxAccumulatedChars)
+        return;
+    m_accumulated = m_accumulated.right(kMaxAccumulatedChars / 2);
+}
+
 void ProcessRunner::handleReadyRead()
 {
     QByteArray chunk = m_proc.readAllStandardOutput();
@@ -88,6 +106,7 @@ void ProcessRunner::handleReadyRead()
 
     const QString text = QString::fromUtf8(chunk);
     m_accumulated += text;
+    trimAccumulated();
     m_partial += text;
 
     int idx;

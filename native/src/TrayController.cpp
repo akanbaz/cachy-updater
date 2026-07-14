@@ -9,6 +9,7 @@
 #include <QFileSystemWatcher>
 #include <QIcon>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPixmap>
 #include <QProcess>
 #include <QSystemTrayIcon>
@@ -29,7 +30,7 @@ QIcon trayIconFor(bool hasUpdates)
         if (source.isNull())
             return {};
         QIcon out;
-        for (const int size : {16, 22, 32}) {
+        for (const int size : {16, 22, 32, 48, 64}) {
             const QPixmap px = source.pixmap(size, size);
             if (!px.isNull())
                 out.addPixmap(px);
@@ -176,6 +177,18 @@ void TrayController::applyAll()
 {
     if (m_updater->busy())
         return;
+    const int count = m_updater->packageCount();
+    if (count <= 0)
+        return;
+
+    const auto reply = QMessageBox::question(
+        nullptr, QStringLiteral("Apply all updates?"),
+        count == 1 ? QStringLiteral("Apply 1 pending update now?")
+                   : QStringLiteral("Apply all %1 pending updates now?").arg(count),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (reply != QMessageBox::Yes)
+        return;
+
     m_updater->setAllSelected(true);
     m_updater->apply();
 }

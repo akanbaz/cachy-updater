@@ -24,6 +24,9 @@ public:
     bool isRunning() const { return m_proc.state() != QProcess::NotRunning; }
     void stop();
 
+    // Stop every ProcessRunner in the object tree under root (incl. root).
+    static void stopAll(QObject *root);
+
 signals:
     void line(const QString &text);
     void finished(int exitCode, const QString &output);
@@ -32,6 +35,7 @@ signals:
 private:
     void handleReadyRead();
     void emitPartialAsLine();
+    void trimAccumulated();
 
     QProcess m_proc;
     QTimer m_timer;
@@ -40,4 +44,6 @@ private:
     bool m_merged = true;
     int m_timeoutMs = 60000;
     bool m_settled = false;
+
+    static constexpr int kMaxAccumulatedChars = 2 * 1024 * 1024;
 };

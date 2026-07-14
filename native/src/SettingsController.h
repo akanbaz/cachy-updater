@@ -29,6 +29,7 @@ class SettingsController : public QObject
     Q_PROPERTY(bool scheduledChecks READ scheduledChecks WRITE setScheduledChecks
                    NOTIFY settingsChanged)
     Q_PROPERTY(QStringList holdPackages READ holdPackages NOTIFY holdPackagesChanged)
+    Q_PROPERTY(QString configWarning READ configWarning NOTIFY settingsChanged)
 
 public:
     explicit SettingsController(QObject *parent = nullptr);
@@ -48,6 +49,7 @@ public:
     bool scheduledChecks() const { return m_scheduledChecks; }
     QStringList holdPackages() const { return m_holdPackages; }
     QStringList acknowledgedArchNews() const { return m_acknowledgedArchNews; }
+    QString configWarning() const { return m_configWarning; }
 
     void setTrayIntervalMinutes(int v);
     void setAutoCheckOnStartup(bool v);
@@ -92,4 +94,7 @@ private:
     bool m_scheduledChecks = false;
     QStringList m_holdPackages;
     QStringList m_acknowledgedArchNews;
+    QString m_configWarning;
+
+    void refreshConfigWritable();
 };

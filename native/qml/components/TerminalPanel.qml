@@ -11,6 +11,8 @@ Rectangle {
     property bool expanded: false
     property var controller: Updater
     property int edgeMargin: Theme.spacingSmall
+    property int maxLines: 1500
+    property int lineCount: 0
     readonly property int barHeight: bar.implicitHeight + Theme.spacingSmall * 2
     readonly property int expandedHeight: Math.min(220, Math.max(120, expanded ? 220 : barHeight))
 
@@ -26,14 +28,25 @@ Rectangle {
         return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     }
     function colorFor(kind) {
-        if (kind === "cmd") return "#00B7C2"
-        if (kind === "warn") return "#E4AE49"
-        if (kind === "error") return "#E58A8A"
-        if (kind === "ok") return "#2FBE8F"
-        return "#B4B9BE"
+        if (kind === "cmd") return Theme.cyan
+        if (kind === "warn") return Theme.warnText
+        if (kind === "error") return Theme.errorText
+        if (kind === "ok") return Theme.ok
+        return Theme.textDim
+    }
+    function clear() {
+        area.text = ""
+        lineCount = 0
     }
     function appendLine(text, kind) {
+        if (lineCount >= maxLines) {
+            clear()
+            area.append('<span style="color:' + colorFor("warn")
+                        + '">[earlier output trimmed]</span>')
+            lineCount = 1
+        }
         area.append('<span style="color:' + colorFor(kind) + '">' + escapeHtml(text) + '</span>')
+        lineCount += 1
         area.cursorPosition = area.length
     }
 
@@ -43,6 +56,10 @@ Rectangle {
             term.appendLine(text, kind)
             if (kind === "error")
                 term.expanded = true
+        }
+        function onBusyChanged() {
+            if (term.controller && term.controller.busy)
+                term.clear()
         }
     }
 
@@ -59,7 +76,11 @@ Rectangle {
             Layout.fillWidth: true
             spacing: Theme.spacingSmall
 
-            Kirigami.Icon { source: "utilities-terminal"; implicitWidth: 16; implicitHeight: 16 }
+            Kirigami.Icon {
+                source: "utilities-terminal"
+                implicitWidth: Theme.iconSmall
+                implicitHeight: Theme.iconSmall
+            }
             QQC2.Label {
                 text: "Terminal"
                 color: Theme.textDim
@@ -68,6 +89,13 @@ Rectangle {
                 font.weight: Font.DemiBold
             }
             Item { Layout.fillWidth: true }
+            QQC2.ToolButton {
+                text: "Clear"
+                flat: true
+                icon.name: "edit-clear"
+                font.pixelSize: 12
+                onClicked: term.clear()
+            }
             QQC2.ToolButton {
                 text: "Copy log"
                 flat: true
@@ -87,6 +115,9 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.max(0, term.expandedHeight - term.barHeight)
             clip: true
+            // Ensure scrollbars appear when content overflows.
+            ScrollBar.horizontal.policy: QQC2.ScrollBar.AsNeeded
+            ScrollBar.vertical.policy: QQC2.ScrollBar.AsNeeded
 
             QQC2.TextArea {
                 id: area
@@ -97,6 +128,8 @@ Rectangle {
                 font.family: Theme.monoFamily
                 font.pixelSize: 12
                 background: Rectangle { color: "transparent" }
+                // Avoid focus traps — terminal is display-only.
+                activeFocusOnTab: false
             }
         }
     }

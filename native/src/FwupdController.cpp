@@ -207,3 +207,12 @@ void FwupdController::updateDevice(const QString &deviceId)
     r->start(QStringLiteral("pkexec"),
              {QStringLiteral("fwupdmgr"), QStringLiteral("install"), deviceId});
 }
+
+void FwupdController::cancel()
+{
+    ProcessRunner::stopAll(this);
+    if (m_busy) {
+        setBusy(false);
+        emitLine(QStringLiteral("Cancelled."), QStringLiteral("warn"));
+    }
+}

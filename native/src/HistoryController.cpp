@@ -53,6 +53,17 @@ void HistoryModel::prepend(const HistoryEntry &entry)
     endInsertRows();
 }
 
+void HistoryModel::trimTo(int maxEntries)
+{
+    if (maxEntries < 0 || m_items.size() <= maxEntries)
+        return;
+    const int first = maxEntries;
+    const int last = m_items.size() - 1;
+    beginRemoveRows({}, first, last);
+    m_items.resize(maxEntries);
+    endRemoveRows();
+}
+
 // ---------------------------------------------------------------------------
 
 HistoryController::HistoryController(QObject *parent)
@@ -100,16 +111,15 @@ void HistoryController::reload()
 void HistoryController::record(const QString &action, const QString &detail, bool success)
 {
     HistoryEntry e;
-    e.timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm"));
+    // ISO-8601 with offset so entries stay correct if the user changes timezone.
+    e.timestamp = QDateTime::currentDateTime().toOffsetFromUtc(
+                                     QDateTime::currentDateTime().offsetFromUtc())
+                         .toString(Qt::ISODate);
     e.action = action;
     e.detail = detail;
     e.success = success;
     m_model->prepend(e);
-
-    while (m_model->rowCount() > kMaxEntries) {
-        // Trim via reload from model internals — simplest: persist trims.
-        break;
-    }
+    m_model->trimTo(kMaxEntries);
     persist();
     emit changed();
 }

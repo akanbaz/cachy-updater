@@ -153,7 +153,8 @@ private:
     void finalizeCheck();
     void parsePacmanStyle(const QString &out, cachy::Source source);
     void parseFlatpak(const QString &out);
-    void loadFlatpakInstalled();
+    bool abortIfCancelled();
+    bool refuseIfPacmanLocked(const QString &action);
 
     void beginRun(Mode mode, cachy::Source only = cachy::Source::Repo, bool onlySet = false);
     void createSnapshot(std::function<void(bool)> onDone);
@@ -186,6 +187,7 @@ private:
     bool m_nvidiaKernelWarning = false;
 
     bool m_busy = false;
+    bool m_cancelled = false;
     QString m_statusText = QStringLiteral("Ready.");
     QString m_statusState = QStringLiteral("idle");
     QString m_stage = QStringLiteral("Idle");

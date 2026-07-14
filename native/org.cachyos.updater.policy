@@ -7,13 +7,9 @@
   <vendor_url>https://cachyos.org</vendor_url>
 
   <!--
-    Optional. The application applies updates by invoking `pkexec pacman ...`,
-    which already works out of the box using the default
-    org.freedesktop.policykit.exec action (prompts for the admin password).
-
-    This action is provided for administrators who want to relax or tighten
-    that behaviour (e.g. keep the authorization for a few minutes). It is not
-    required for the app to function.
+    Used when invoking pkexec /usr/bin/pacman. pkexec matches actions by
+    annotated exec.path; this action provides auth_admin_keep so an active
+    session can apply multiple pacman steps without re-prompting immediately.
   -->
   <action id="org.cachyos.updater.apply">
     <description>Apply system package updates</description>

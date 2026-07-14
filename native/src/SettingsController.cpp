@@ -1,10 +1,43 @@
 #include "SettingsController.h"
 
+#include "Helpers.h"
+
+#include <QDir>
+#include <QFileInfo>
+#include <QStandardPaths>
+
 SettingsController::SettingsController(QObject *parent)
     : QObject(parent)
     , m_store(QStringLiteral("CachyOS"), QStringLiteral("cachyos-updater"))
 {
     load();
+    refreshConfigWritable();
+}
+
+void SettingsController::refreshConfigWritable()
+{
+    QString err;
+    const QString confDir =
+        QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
+        + QStringLiteral("/CachyOS");
+    const QString cacheDir =
+        QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+
+    m_configWarning.clear();
+    if (!cachy::helpers::ensureUserDirWritable(confDir, &err))
+        m_configWarning = err;
+    else if (!cachy::helpers::ensureUserDirWritable(cacheDir, &err))
+        m_configWarning = err;
+
+    const QString confFile = confDir + QStringLiteral("/cachyos-updater.conf");
+    if (QFileInfo::exists(confFile)) {
+        QFileInfo fi(confFile);
+        if (!fi.isWritable()) {
+            m_configWarning = QStringLiteral(
+                "Config file is not writable (often owned by root after a sudo run): %1")
+                                  .arg(confFile);
+        }
+    }
 }
 
 void SettingsController::setTrayIntervalMinutes(int v)
@@ -172,6 +205,11 @@ bool SettingsController::isArchNewsAcknowledged(const QString &id) const
 
 void SettingsController::save()
 {
+    refreshConfigWritable();
+    if (!m_configWarning.isEmpty()) {
+        emit settingsChanged();
+        return;
+    }
     m_store.setValue(QStringLiteral("trayIntervalMinutes"), m_trayIntervalMinutes);
     m_store.setValue(QStringLiteral("autoCheckOnStartup"), m_autoCheckOnStartup);
     m_store.setValue(QStringLiteral("defaultTab"), m_defaultTab);

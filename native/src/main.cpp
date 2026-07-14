@@ -2,12 +2,14 @@
 #include "HistoryController.h"
 #include "MaintainController.h"
 #include "NewsController.h"
+#include "ProcessRunner.h"
 #include "SettingsController.h"
 #include "TrayController.h"
 #include "UpdateController.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QCoreApplication>
 #include <QDir>
 #include <QIcon>
 #include <QLockFile>
@@ -30,6 +32,17 @@ static bool acquireTrayLock()
     g_trayLock = std::make_unique<QLockFile>(path);
     g_trayLock->setStaleLockTime(0);
     return g_trayLock->tryLock(100);
+}
+
+static void stopAllWork(UpdateController &updater, MaintainController &maintain,
+                        FwupdController &firmware)
+{
+    updater.cancel();
+    maintain.cancel();
+    firmware.cancel();
+    ProcessRunner::stopAll(&updater);
+    ProcessRunner::stopAll(&maintain);
+    ProcessRunner::stopAll(&firmware);
 }
 
 int main(int argc, char *argv[])
@@ -75,6 +88,10 @@ int main(int argc, char *argv[])
     NewsController news;
     MaintainController maintain(&settings);
     FwupdController firmware;
+
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &app, [&]() {
+        stopAllWork(updater, maintain, firmware);
+    });
 
     updater.setNewsGateChecker([&news, &settings](QString *text) {
         return news.checkArchGate(&settings, text);

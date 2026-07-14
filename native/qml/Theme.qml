@@ -2,50 +2,57 @@ pragma Singleton
 
 import QtQuick
 
-// CachyOS design tokens. Flat surfaces, cyan accent, deep blue, neutral greys.
+// CachyOS design tokens. Adapts to system light/dark via Qt.styleHints.
 // Spacing follows the KDE Plasma 8 / 16 / 24 grid.
 QtObject {
-    // Neutral greys
-    readonly property color bg: "#161719"
-    readonly property color deepBg: "#121315"
-    readonly property color surface: "#1D1E21"
-    readonly property color surfaceHover: "#26282C"
-    readonly property color rowHover: "#232529"
-    readonly property color border: "#2A2C30"
-    readonly property color borderStrong: "#34373C"
+    readonly property bool isDark: Qt.styleHints.colorScheme === Qt.ColorScheme.Dark
+
+    // Surfaces
+    readonly property color bg: isDark ? "#161719" : "#F4F5F6"
+    readonly property color deepBg: isDark ? "#121315" : "#EAECEF"
+    readonly property color surface: isDark ? "#1D1E21" : "#FFFFFF"
+    readonly property color surfaceHover: isDark ? "#26282C" : "#E8EAED"
+    readonly property color rowHover: isDark ? "#232529" : "#DFE3E8"
+    readonly property color border: isDark ? "#2A2C30" : "#D0D4D9"
+    readonly property color borderStrong: isDark ? "#34373C" : "#B8BEC6"
 
     // CachyOS blues + cyan accent
-    readonly property color kernel: "#0F4C75"
-    readonly property color kernelDeep: "#0A3D62"
-    readonly property color kernelBorder: "#1B6699"
+    readonly property color kernel: isDark ? "#0F4C75" : "#1A6FA0"
+    readonly property color kernelDeep: isDark ? "#0A3D62" : "#E6F2F8"
+    readonly property color kernelBorder: isDark ? "#1B6699" : "#7EB6D6"
     readonly property color cyan: "#00B7C2"
     readonly property color cyanHover: "#1AC7D1"
     readonly property color cyanPressed: "#009AA4"
-    readonly property color cyanInk: "#062A2E"
-    readonly property color cyanBg: "#0D2A2E"
+    readonly property color cyanInk: isDark ? "#062A2E" : "#043033"
+    readonly property color cyanBg: isDark ? "#0D2A2E" : "#D7F3F5"
 
     // Text
-    readonly property color text: "#E7E9EB"
-    readonly property color textDim: "#B4B9BE"
-    readonly property color textMuted: "#868D94"
-    readonly property color textFaint: "#5F656B"
+    readonly property color text: isDark ? "#E7E9EB" : "#1A1C1E"
+    readonly property color textDim: isDark ? "#B4B9BE" : "#4A5158"
+    readonly property color textMuted: isDark ? "#868D94" : "#6B737A"
+    readonly property color textFaint: isDark ? "#5F656B" : "#8A9299"
 
     // Warm tones — warnings/errors only
-    readonly property color warnBg: "#2E2513"
-    readonly property color warnBorder: "#B98A32"
-    readonly property color warnText: "#E4AE49"
-    readonly property color errorBg: "#331A1A"
-    readonly property color errorBorder: "#A84545"
-    readonly property color errorText: "#E58A8A"
+    readonly property color warnBg: isDark ? "#2E2513" : "#FBF3E0"
+    readonly property color warnBorder: isDark ? "#B98A32" : "#C4922A"
+    readonly property color warnText: isDark ? "#E4AE49" : "#8A6500"
+    readonly property color errorBg: isDark ? "#331A1A" : "#FBEAEA"
+    readonly property color errorBorder: isDark ? "#A84545" : "#C45A5A"
+    readonly property color errorText: isDark ? "#E58A8A" : "#A83232"
     readonly property color ok: "#2FBE8F"
 
-    // Spacing grid
+    // Spacing grid (Plasma-aligned)
     readonly property int spacingSmall: 8
     readonly property int spacing: 16
     readonly property int spacingLarge: 24
 
     readonly property int radius: 6
     readonly property int radiusSmall: 4
+
+    // Prefer Kirigami-friendly pixel sizes; ListView/icons use these.
+    readonly property int iconSmall: 16
+    readonly property int iconMedium: 22
+    readonly property int iconLarge: 32
 
     readonly property string monoFamily: "JetBrains Mono, Hack, Noto Sans Mono, monospace"
     readonly property string sansFamily: "Noto Sans, sans-serif"

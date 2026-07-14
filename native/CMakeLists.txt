@@ -11,8 +11,13 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.6 REQUIRED COMPONENTS
     Core Gui Widgets Qml Quick QuickControls2 Network)
+find_package(KF6Kirigami REQUIRED)
+find_package(KF6KirigamiPlatform REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.6)
+
+# Prefer proper qmldir generation for QML files living under qml/pages and qml/components.
+qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(cachyos-updater
     src/main.cpp
@@ -45,6 +50,9 @@ set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 qt_add_qml_module(cachyos-updater
     URI org.cachyos.updater
     VERSION 1.0
+    # Kirigami QML plugins ship with the system package and load at runtime;
+    # skip static plugin import linking (avoids noisy missing-target warnings).
+    NO_IMPORT_SCAN
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -79,6 +87,8 @@ target_link_libraries(cachyos-updater PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::Network
+    KF6::Kirigami
+    KF6::KirigamiPlatform
 )
 
 include(GNUInstallDirs)
@@ -116,3 +126,9 @@ install(FILES assets/tray-updates.svg
 
 install(FILES org.cachyos.updater.policy
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/polkit-1/actions)
+
+install(FILES org.cachyos.updater.metainfo.xml
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo)
+
+install(FILES org.cachyos.updater.xml
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/mime/packages)

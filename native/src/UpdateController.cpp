@@ -9,10 +9,12 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QNetworkInformation>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QProcess>
@@ -21,6 +23,8 @@
 #include <QStandardPaths>
 #include <QUrl>
 #include <QUrlQuery>
+
+#include <algorithm>
 
 using namespace cachy;
 
@@ -185,6 +189,25 @@ void UpdateController::emitLine(const QString &text, const QString &kind)
     emit lineEmitted(text, kind);
 }
 
+bool UpdateController::abortIfCancelled()
+{
+    return m_cancelled;
+}
+
+bool UpdateController::refuseIfPacmanLocked(const QString &action)
+{
+    if (!helpers::pacmanDbLocked())
+        return false;
+    emitLine(QStringLiteral(
+                 "Pacman database is locked (another pacman/paru is running). "
+                 "Wait for it to finish, or remove a stale /var/lib/pacman/db.lck "
+                 "only if you are sure no package manager is active."),
+             QStringLiteral("error"));
+    m_warnings << QStringLiteral("Pacman is locked — cannot %1.").arg(action);
+    emit updatesChanged();
+    return true;
+}
+
 void UpdateController::runStep(const QString &program, const QStringList &args,
                                const QProcessEnvironment &env,
                                std::function<void(int, const QString &)> onDone)
@@ -193,15 +216,19 @@ void UpdateController::runStep(const QString &program, const QStringList &args,
     r->setMerged(false);
     r->setTimeout(120000);
     connect(r, &ProcessRunner::finished, this,
-            [r, onDone](int code, const QString &out) {
-                onDone(code, out);
+            [this, r, onDone](int code, const QString &out) {
                 r->deleteLater();
+                if (m_cancelled)
+                    return;
+                onDone(code, out);
             });
     connect(r, &ProcessRunner::failed, this,
             [this, r, onDone](const QString &err) {
+                r->deleteLater();
+                if (m_cancelled)
+                    return;
                 m_warnings << err;
                 onDone(-1, QString());
-                r->deleteLater();
             });
     r->start(program, args, env);
 }
@@ -218,7 +245,11 @@ QStringList UpdateController::pacmanBandwidthArgs() const
 QProcessEnvironment UpdateController::aurEnv() const
 {
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    if (m_settings && m_settings->paruConcurrency() > 0) {
+    helpers::forceCLocale(env);
+    env.insert(QStringLiteral("CI"), QStringLiteral("1"));
+    env.insert(QStringLiteral("GIT_TERMINAL_PROMPT"), QStringLiteral("0"));
+    if (m_settings && m_settings->paruConcurrency() > 0
+        && helpers::aurHelperName(aurProgram()) == QLatin1String("paru")) {
         env.insert(QStringLiteral("PARU_MAX_CONCURRENT"),
                    QString::number(m_settings->paruConcurrency()));
     }
@@ -477,6 +508,20 @@ void UpdateController::check()
         return;
     }
 
+    if (QNetworkInformation::loadDefaultBackend()) {
+        if (auto *ni = QNetworkInformation::instance()) {
+            using R = QNetworkInformation::Reachability;
+            if (ni->reachability() == R::Disconnected) {
+                emitLine(QStringLiteral(
+                             "No network connection \u2014 loading cached results."),
+                         QStringLiteral("warn"));
+                loadCachedCheck();
+                return;
+            }
+        }
+    }
+
+    m_cancelled = false;
     setBusy(true);
     setStatus(QStringLiteral("Checking for updates\u2026"), QStringLiteral("checking"));
     m_collect.clear();
@@ -489,10 +534,16 @@ void UpdateController::check()
 
     const QString cache =
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    QString dirErr;
+    if (!helpers::ensureUserDirWritable(cache, &dirErr)) {
+        m_warnings << dirErr;
+        emitLine(dirErr, QStringLiteral("warn"));
+    }
     QDir().mkpath(cache + QStringLiteral("/checkupdates-db"));
     m_checkDbPath = cache + QStringLiteral("/checkupdates-db");
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    helpers::forceCLocale(env);
     env.insert(QStringLiteral("CHECKUPDATES_DB"), m_checkDbPath);
 
     if (which(QStringLiteral("checkupdates")).isEmpty()) {
@@ -505,14 +556,21 @@ void UpdateController::check()
     emitLine(QStringLiteral("$ checkupdates"), QStringLiteral("cmd"));
     runStep(QStringLiteral("checkupdates"), {}, env,
             [this](int code, const QString &out) {
+                if (abortIfCancelled())
+                    return;
                 if (code == 0) {
                     parsePacmanStyle(out, Source::Repo);
                 } else {
                     if (code < 0 || code > 2
                         || out.contains(QLatin1String("failed to synchronize"),
+                                        Qt::CaseInsensitive)
+                        || out.contains(QLatin1String("could not resolve host"),
+                                        Qt::CaseInsensitive)
+                        || out.contains(QLatin1String("failed retrieving file"),
                                         Qt::CaseInsensitive)) {
                         m_warnings << QStringLiteral(
-                            "Could not reach package mirrors — try again later or pick another mirror.");
+                            "Could not reach package mirrors — try again later, "
+                            "or refresh mirrors (e.g. cachyos-rate-mirrors / reflector).");
                     } else {
                         m_warnings << QStringLiteral(
                             "Repository check failed — see terminal output for details.");
@@ -524,6 +582,8 @@ void UpdateController::check()
 
 void UpdateController::checkAur()
 {
+    if (abortIfCancelled())
+        return;
     const QString helper = aurProgram();
     if (helper.isEmpty()) {
         checkFlatpak();
@@ -533,18 +593,34 @@ void UpdateController::checkAur()
     runStep(helper, {QStringLiteral("--color"), QStringLiteral("never"),
                      QStringLiteral("-Qua")},
             aurEnv(), [this](int, const QString &out) {
+                if (abortIfCancelled())
+                    return;
                 parsePacmanStyle(out, Source::Aur);
                 checkFlatpak();
             });
 }
 
-void UpdateController::loadFlatpakInstalled()
+void UpdateController::checkFlatpak()
 {
-    if (which(QStringLiteral("flatpak")).isEmpty())
+    if (abortIfCancelled())
         return;
+    if (m_settings && !m_settings->enableFlatpak()) {
+        enrich();
+        return;
+    }
+    if (which(QStringLiteral("flatpak")).isEmpty()) {
+        enrich();
+        return;
+    }
+
+    emitLine(QStringLiteral("$ flatpak list"), QStringLiteral("cmd"));
     runStep(QStringLiteral("flatpak"),
             {QStringLiteral("list"), QStringLiteral("--columns=application,version,type")},
             QProcessEnvironment(), [this](int, const QString &out) {
+                if (abortIfCancelled())
+                    return;
+                m_flatpakInstalled.clear();
+                m_flatpakKinds.clear();
                 const QList<QStringView> lines =
                     QStringView(out).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
                 for (const QStringView &lv : lines) {
@@ -555,27 +631,18 @@ void UpdateController::loadFlatpakInstalled()
                     if (cols.size() >= 3)
                         m_flatpakKinds.insert(cols.at(0), cols.value(2));
                 }
-            });
-}
 
-void UpdateController::checkFlatpak()
-{
-    if (m_settings && !m_settings->enableFlatpak()) {
-        enrich();
-        return;
-    }
-    if (which(QStringLiteral("flatpak")).isEmpty()) {
-        enrich();
-        return;
-    }
-    loadFlatpakInstalled();
-    emitLine(QStringLiteral("$ flatpak remote-ls --updates"), QStringLiteral("cmd"));
-    runStep(QStringLiteral("flatpak"),
-            {QStringLiteral("remote-ls"), QStringLiteral("--updates"),
-             QStringLiteral("--columns=application,version")},
-            QProcessEnvironment(), [this](int, const QString &out) {
-                parseFlatpak(out);
-                enrich();
+                emitLine(QStringLiteral("$ flatpak remote-ls --updates"),
+                         QStringLiteral("cmd"));
+                runStep(QStringLiteral("flatpak"),
+                        {QStringLiteral("remote-ls"), QStringLiteral("--updates"),
+                         QStringLiteral("--columns=application,version")},
+                        QProcessEnvironment(), [this](int, const QString &out2) {
+                            if (abortIfCancelled())
+                                return;
+                            parseFlatpak(out2);
+                            enrich();
+                        });
             });
 }
 
@@ -622,12 +689,17 @@ void UpdateController::parseFlatpak(const QString &out)
 
 void UpdateController::enrich()
 {
+    if (abortIfCancelled())
+        return;
+
     QStringList repoNames;
     for (const Pkg &p : m_collect)
         if (p.source == Source::Repo)
             repoNames << p.name;
 
     auto afterRepo = [this]() {
+        if (abortIfCancelled())
+            return;
         if (m_collect.isEmpty()
             || std::none_of(m_collect.begin(), m_collect.end(),
                             [](const Pkg &p) { return p.source == Source::Aur; })) {
@@ -647,8 +719,12 @@ void UpdateController::enrich()
          << QStringLiteral("%n\t%r\t%k\t%m\t%G\t%d\t%C") << QStringLiteral("--");
     args += repoNames;
 
-    runStep(QStringLiteral("expac"), args, QProcessEnvironment(),
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    helpers::forceCLocale(env);
+    runStep(QStringLiteral("expac"), args, env,
             [this, afterRepo](int, const QString &out) {
+                if (abortIfCancelled())
+                    return;
                 QHash<QString, QStringList> byName;
                 const QList<QStringView> lines =
                     QStringView(out).split(QLatin1Char('\n'));
@@ -682,6 +758,8 @@ void UpdateController::enrich()
 
 void UpdateController::fetchAurChangelogs()
 {
+    if (abortIfCancelled())
+        return;
     if (m_settings && m_settings->offlineMode()) {
         finalizeCheck();
         return;
@@ -715,6 +793,8 @@ void UpdateController::fetchAurChangelogs()
         const QByteArray data = reply->readAll();
         reply->deleteLater();
         nam->deleteLater();
+        if (abortIfCancelled())
+            return;
         if (err == QNetworkReply::NoError) {
             const QJsonDocument doc = QJsonDocument::fromJson(data);
             const QJsonArray results =
@@ -739,12 +819,12 @@ void UpdateController::fetchAurChangelogs()
 
 void UpdateController::finalizeCheck()
 {
-    const QString running = helpers::runningKernel();
+    if (abortIfCancelled())
+        return;
+
     for (Pkg &p : m_collect) {
         p.kernel = classifier::isKernel(p.name, p.source);
-        if (p.kernel && !running.isEmpty()
-            && running.contains(p.name, Qt::CaseInsensitive))
-            p.runningKernel = true;
+        p.runningKernel = p.kernel && helpers::isRunningKernelPackage(p.name);
         p.severity = classifier::classify(p);
         p.summary = classifier::buildSummary(p);
         if (!p.changelog.isEmpty()) {
@@ -824,16 +904,16 @@ QString UpdateController::plannedCommands() const
     }
 
     if (repoSel > 0) {
-        QString c = QStringLiteral("pkexec pacman -Syu --noconfirm");
+        QString c = QStringLiteral("pkexec /usr/bin/pacman -Syu --noconfirm");
         c += QStringLiteral(" ") + pacmanBandwidthArgs().join(QLatin1Char(' '));
         if (!deselectedRepo.isEmpty())
             c += QStringLiteral(" --ignore ") + deselectedRepo.join(QLatin1Char(','));
         cmds << c.trimmed();
     }
     if (aurSel > 0 && !helper.isEmpty()) {
-        cmds << (aurSel == aurAll
-                     ? helper + QStringLiteral(" -Sua --noconfirm")
-                     : helper + QStringLiteral(" -S --noconfirm ") + aurNames.join(QLatin1Char(' ')));
+        const bool full = aurSel == aurAll;
+        const QStringList args = helpers::aurApplyArgs(helper, full, aurNames);
+        cmds << helper + QLatin1Char(' ') + args.join(QLatin1Char(' '));
     }
     if (flatSel > 0) {
         cmds << (flatSel == flatAll
@@ -874,7 +954,12 @@ void UpdateController::beginRun(Mode mode, Source only, bool onlySet)
                  QStringLiteral("warn"));
         return;
     }
+    if (refuseIfPacmanLocked(QStringLiteral("apply updates"))) {
+        setStatus(QStringLiteral("Pacman is locked."), QStringLiteral("error"));
+        return;
+    }
 
+    m_cancelled = false;
     m_singleSourceRun = onlySet;
     m_singleSource = only;
 
@@ -892,9 +977,11 @@ void UpdateController::beginRun(Mode mode, Source only, bool onlySet)
     }
 
     auto startRun = [this, mode]() {
+        if (abortIfCancelled())
+            return;
         m_mode = mode;
         m_running = true;
-        setBusy(true);
+        // busy already true from beginRun
         m_warnings.clear();
         m_runQueue.clear();
         QSet<QString> present;
@@ -920,11 +1007,18 @@ void UpdateController::beginRun(Mode mode, Source only, bool onlySet)
         runNextGroup();
     };
 
+    setBusy(true);
+    setStatus(QStringLiteral("Preparing\u2026"), QStringLiteral("applying"));
+
     const bool wantSnapshot = m_settings && m_settings->enableSnapshots()
                               && snapshotsAvailable() && mode == Mode::Apply
                               && !m_singleSourceRun;
     if (wantSnapshot) {
-        createSnapshot([this, startRun](bool) { startRun(); });
+        createSnapshot([this, startRun](bool) {
+            if (abortIfCancelled())
+                return;
+            startRun();
+        });
     } else {
         startRun();
     }
@@ -952,6 +1046,8 @@ void UpdateController::createSnapshot(std::function<void(bool)> onDone)
 
 void UpdateController::runNextGroup()
 {
+    if (abortIfCancelled())
+        return;
     if (m_runIndex >= m_runQueue.size()) {
         finishRun(true);
         return;
@@ -984,7 +1080,7 @@ void UpdateController::runNextGroup()
 
     if (src == Source::Repo) {
         program = QStringLiteral("pkexec");
-        args << QStringLiteral("pacman")
+        args << QStringLiteral("/usr/bin/pacman")
              << (m_mode == Mode::DownloadOnly ? QStringLiteral("-Syuw")
                                               : QStringLiteral("-Syu"))
              << QStringLiteral("--noconfirm");
@@ -1002,9 +1098,9 @@ void UpdateController::runNextGroup()
         }
         env = aurEnv();
         if (aurSel == aurAll && !m_singleSourceRun)
-            args << QStringLiteral("-Sua") << QStringLiteral("--noconfirm");
+            args = helpers::aurApplyArgs(program, true);
         else
-            args << QStringLiteral("-S") << QStringLiteral("--noconfirm") << aurNames;
+            args = helpers::aurApplyArgs(program, false, aurNames);
         setStage(QStringLiteral("AUR build"), 0.55);
     } else {
         program = QStringLiteral("flatpak");
@@ -1021,6 +1117,8 @@ void UpdateController::runNextGroup()
     r->setMerged(true);
     r->setTimeout(0);
     connect(r, &ProcessRunner::line, this, [this](const QString &l) {
+        if (m_cancelled)
+            return;
         emitLine(l, classifyLineKind(l));
         const QString low = l.toLower();
         if (low.contains(QLatin1String("synchronizing package")))
@@ -1039,6 +1137,8 @@ void UpdateController::runNextGroup()
     connect(r, &ProcessRunner::finished, this,
             [this, r](int code, const QString &) {
                 r->deleteLater();
+                if (m_cancelled)
+                    return;
                 if (code != 0) {
                     m_warnings << QStringLiteral("A step exited with code %1.").arg(code);
                     emitLine(QStringLiteral("Step failed with exit code %1.").arg(code),
@@ -1051,6 +1151,8 @@ void UpdateController::runNextGroup()
             });
     connect(r, &ProcessRunner::failed, this, [this, r](const QString &err) {
         r->deleteLater();
+        if (m_cancelled)
+            return;
         m_warnings << err;
         emitLine(err, QStringLiteral("error"));
         finishRun(false);
@@ -1060,6 +1162,10 @@ void UpdateController::runNextGroup()
 
 void UpdateController::finishRun(bool ok)
 {
+    if (m_cancelled && !ok) {
+        // cancel() already reset busy/status; avoid duplicate failure UI.
+        return;
+    }
     m_running = false;
     setBusy(false);
     setStage(ok ? QStringLiteral("Summary") : QStringLiteral("Failed"),
@@ -1090,22 +1196,30 @@ void UpdateController::finishRun(bool ok)
 
 void UpdateController::cancel()
 {
-    for (ProcessRunner *r : findChildren<ProcessRunner *>())
-        r->stop();
-    if (m_running) {
-        m_running = false;
+    m_cancelled = true;
+    m_runQueue.clear();
+    ProcessRunner::stopAll(this);
+    m_running = false;
+    if (m_busy) {
         setBusy(false);
         setStatus(QStringLiteral("Cancelled."), QStringLiteral("idle"));
+        setStage(QStringLiteral("Idle"), 0.0);
+        emitLine(QStringLiteral("Cancelled."), QStringLiteral("warn"));
     }
 }
 
 QString UpdateController::classifyLineKind(const QString &line) const
 {
     const QString low = line.toLower();
-    if (low.contains(QLatin1String("error")) || low.contains(QLatin1String("failed"))
-        || low.startsWith(QLatin1String("==> error")))
+    // Prefer structural markers (stable under LC_ALL=C) plus common tokens.
+    if (low.contains(QLatin1String("error:")) || low.contains(QLatin1String("error "))
+        || low.contains(QLatin1String("failed"))
+        || low.startsWith(QLatin1String("==> error"))
+        || low.startsWith(QLatin1String(":: error")))
         return QStringLiteral("error");
-    if (low.contains(QLatin1String("warning")) || low.startsWith(QLatin1String("==> warning")))
+    if (low.contains(QLatin1String("warning:")) || low.contains(QLatin1String("warning"))
+        || low.startsWith(QLatin1String("==> warning"))
+        || low.startsWith(QLatin1String(":: warning")))
         return QStringLiteral("warn");
     if (line.startsWith(QLatin1String("::")) || line.startsWith(QLatin1String("==>")))
         return QStringLiteral("cmd");

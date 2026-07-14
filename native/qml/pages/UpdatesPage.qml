@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.cachyos.updater
-import "../components"
 
 ColumnLayout {
     id: updatesRoot
@@ -64,20 +63,43 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.spacingSmall
+        visible: Updater.packageCount > 0
 
         QQC2.Label {
             Layout.fillWidth: true
             color: Theme.textDim
             font.family: Theme.sansFamily
             font.pixelSize: 13
+            text: Updater.packageCount
+                  + (Updater.packageCount === 1 ? " update pending" : " updates pending")
+                  + "   \u00b7   " + Updater.downloadText + " download"
+                  + "   \u00b7   " + Updater.sourceCount
+                  + (Updater.sourceCount === 1 ? " source" : " sources")
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingSmall
+
+        Kirigami.SearchField {
+            id: searchField
+            Layout.fillWidth: true
+            Layout.minimumWidth: 140
             opacity: Updater.packageCount > 0 ? 1.0 : 0.0
-            text: Updater.packageCount > 0
-                  ? Updater.packageCount
-                    + (Updater.packageCount === 1 ? " update pending" : " updates pending")
-                    + "   \u00b7   " + Updater.downloadText + " download"
-                    + "   \u00b7   " + Updater.sourceCount
-                    + (Updater.sourceCount === 1 ? " source" : " sources")
-                  : " "
+            enabled: Updater.packageCount > 0 && !Updater.busy
+            placeholderText: "Search packages…"
+            text: Updater.searchText
+            onTextChanged: Updater.setSearchText(text)
+            Keys.onEscapePressed: (event) => {
+                if (text.length > 0) {
+                    clear()
+                    event.accepted = true
+                } else {
+                    focus = false
+                    event.accepted = true
+                }
+            }
         }
 
         QQC2.ComboBox {
@@ -113,6 +135,10 @@ ColumnLayout {
         spacing: 0
         model: Updater.updatesModel
         boundsBehavior: Flickable.StopAtBounds
+        QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+            policy: list.contentHeight > list.height
+                    ? QQC2.ScrollBar.AlwaysOn : QQC2.ScrollBar.AsNeeded
+        }
 
         section.property: "source"
         section.criteria: ViewSection.FullString

@@ -46,6 +46,7 @@ public:
     Q_INVOKABLE void removeOldKernels();
     Q_INVOKABLE void cleanFlatpakUnused();
     Q_INVOKABLE void cleanAurCache();
+    Q_INVOKABLE void cancel();
 
 signals:
     void busyChanged();

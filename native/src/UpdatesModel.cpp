@@ -209,8 +209,9 @@ void UpdateListProxy::setSearchText(const QString &text)
 {
     if (m_searchText == text)
         return;
+    beginFilterChange();
     m_searchText = text;
-    invalidateFilter();
+    endFilterChange();
     emit filtersChanged();
 }
 
@@ -219,8 +220,9 @@ void UpdateListProxy::setMinSeverity(int severity)
     severity = qBound(0, severity, 3);
     if (m_minSeverity == severity)
         return;
+    beginFilterChange();
     m_minSeverity = severity;
-    invalidateFilter();
+    endFilterChange();
     emit filtersChanged();
 }
 
@@ -228,8 +230,9 @@ void UpdateListProxy::setSourceFilter(const QString &source)
 {
     if (m_sourceFilter == source)
         return;
+    beginFilterChange();
     m_sourceFilter = source;
-    invalidateFilter();
+    endFilterChange();
     emit filtersChanged();
 }
 

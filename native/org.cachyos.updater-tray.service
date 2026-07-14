@@ -1,12 +1,19 @@
 [Unit]
 Description=Cachy Updater systray applet
-After=graphical-session.target
+After=graphical-session.target dbus.service
+Wants=graphical-session.target
+PartOf=graphical-session.target
 
 [Service]
 # Prefer a fresh ~/.local install over the system package so rebuilds apply without sudo.
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
 ExecStart=/usr/bin/env cachyos-updater --tray
 Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=10
+# Give the session bus a moment on slow logins (reduces stale/missing tray icons).
+ExecStartPre=/bin/sleep 2
 
 [Install]
 WantedBy=graphical-session.target

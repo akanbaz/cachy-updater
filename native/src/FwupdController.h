@@ -57,6 +57,7 @@ public:
     Q_INVOKABLE void scan();
     Q_INVOKABLE void updateAll();
     Q_INVOKABLE void updateDevice(const QString &deviceId);
+    Q_INVOKABLE void cancel();
 
 signals:
     void busyChanged();
