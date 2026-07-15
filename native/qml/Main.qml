@@ -582,8 +582,8 @@ Kirigami.ApplicationWindow {
             Banner {
                 Layout.fillWidth: true
                 visible: confirmDialog.applySource !== "flatpak" && Updater.partialUpgradeWarning
-                text: "Partial upgrade: held repo packages will be skipped. This can fail "
-                      + "on version-locked packages (gcc, glibc, pipewire…)."
+                text: "Partial upgrade: deselected/held repo packages will be skipped via --ignore. "
+                      + "This can fail on version-locked packages (gcc, glibc, pipewire…)."
                 severity: "warn"
                 closable: false
             }

@@ -139,21 +139,17 @@ int UpdateController::criticalCount() const
 
 bool UpdateController::partialUpgradeWarning() const
 {
-    // Repo applies are all-or-nothing for non-held packages (see beginRun).
-    // The remaining risk is intentional holds: skipping held packages while
-    // upgrading the rest is still a partial upgrade and can fail when the
-    // held package is version-locked to something being upgraded.
-    bool anyRepoSelected = false;
-    bool anyRepoHeld = false;
+    // Deselecting or holding any repo package while upgrading others is a
+    // partial upgrade. Pacman may fail when version-locked families are split.
+    int repoTotal = 0, repoSelected = 0;
     for (const Pkg &p : m_model->items()) {
         if (p.source != Source::Repo)
             continue;
-        if (p.held)
-            anyRepoHeld = true;
-        else if (p.selected)
-            anyRepoSelected = true;
+        ++repoTotal;
+        if (p.selected)
+            ++repoSelected;
     }
-    return anyRepoSelected && anyRepoHeld;
+    return repoSelected > 0 && repoSelected < repoTotal;
 }
 
 QString UpdateController::sourceCommandFor(const QString &source) const
@@ -943,21 +939,18 @@ void UpdateController::finalizeCheck()
 QString UpdateController::plannedCommands() const
 {
     QStringList cmds;
-    QStringList heldRepo;
-    bool anyRepoSelected = false;
-    int aurSel = 0, flatSel = 0, aurAll = 0, flatAll = 0;
+    QStringList ignoredRepo;
+    int repoSel = 0, aurSel = 0, flatSel = 0, aurAll = 0, flatAll = 0;
     QStringList aurNames, flatIds;
     const QString helper = aurProgram();
 
     for (const Pkg &p : m_model->items()) {
         switch (p.source) {
         case Source::Repo:
-            // Preview matches apply: if any non-held repo package is selected,
-            // the whole non-held repo set upgrades together; only holds are ignored.
-            if (p.held)
-                heldRepo << p.name;
-            else if (p.selected)
-                anyRepoSelected = true;
+            if (p.selected)
+                ++repoSel;
+            else
+                ignoredRepo << p.name;
             break;
         case Source::Aur:
             ++aurAll;
@@ -974,11 +967,11 @@ QString UpdateController::plannedCommands() const
         }
     }
 
-    if (anyRepoSelected) {
+    if (repoSel > 0) {
         QString c = QStringLiteral("pkexec /usr/bin/pacman -Syu --noconfirm");
         c += QStringLiteral(" ") + pacmanBandwidthArgs().join(QLatin1Char(' '));
-        if (!heldRepo.isEmpty())
-            c += QStringLiteral(" --ignore ") + heldRepo.join(QLatin1Char(','));
+        if (!ignoredRepo.isEmpty())
+            c += QStringLiteral(" --ignore ") + ignoredRepo.join(QLatin1Char(','));
         cmds << c.trimmed();
     }
     if (aurSel > 0 && !helper.isEmpty()) {
@@ -1043,41 +1036,11 @@ void UpdateController::beginRun(Mode mode, Source only, bool onlySet)
     m_singleSourceRun = onlySet;
     m_singleSource = only;
 
-    // Arch forbids partial upgrades. If this run will touch the repo set,
-    // select every non-held repo package so deselection cannot produce
-    // pacman --ignore for version-locked families (gcc, pipewire, …).
-    const bool touchRepo = !onlySet || only == Source::Repo;
-    if (touchRepo) {
-        bool anyRepo = false;
-        for (const Pkg &p : m_model->items()) {
-            if (p.source == Source::Repo && (p.selected || (onlySet && only == Source::Repo))
-                && !p.held) {
-                anyRepo = true;
-                break;
-            }
-        }
-        if (anyRepo || (onlySet && only == Source::Repo)) {
-            QVector<Pkg> items = m_model->items();
-            bool expanded = false;
-            for (Pkg &p : items) {
-                if (p.source != Source::Repo || p.held)
-                    continue;
-                if (!p.selected) {
-                    p.selected = true;
-                    expanded = true;
-                }
-            }
-            if (expanded) {
-                m_model->setItems(items);
-                m_collect = items;
-                emit selectionChanged();
-                emit updatesChanged();
-                emitLine(QStringLiteral(
-                             "Including all repo updates to avoid a partial upgrade. "
-                             "Hold a package (and its locked group) to skip it."),
-                         QStringLiteral("warn"));
-            }
-        }
+    // Keep version-locked split packages (same pkgbase) from ending up
+    // half-selected before the transaction starts.
+    if (m_model->enforceLockedGroups()) {
+        emit selectionChanged();
+        emit updatesChanged();
     }
 
     int selected = 0;
@@ -1171,15 +1134,12 @@ void UpdateController::runNextGroup()
     }
 
     const Source src = m_runQueue.at(m_runIndex);
-    QStringList heldRepo, aurNames, flatIds;
+    QStringList ignoredRepo, aurNames, flatIds;
     int aurAll = 0, flatAll = 0, aurSel = 0, flatSel = 0;
     for (const Pkg &p : m_model->items()) {
         if (p.source == Source::Repo) {
-            // Only intentional holds (and non-repo single-source runs) are
-            // ignored. Deselected-but-unheld repo packages were forced on in
-            // beginRun and must not reappear as --ignore.
-            if (p.held || (m_singleSourceRun && m_singleSource != Source::Repo))
-                heldRepo << p.name;
+            if (!p.selected || (m_singleSourceRun && m_singleSource != Source::Repo))
+                ignoredRepo << p.name;
         } else if (p.source == Source::Aur) {
             ++aurAll;
             if (p.selected && (!m_singleSourceRun || m_singleSource == Source::Aur))
@@ -1204,8 +1164,8 @@ void UpdateController::runNextGroup()
                                               : QStringLiteral("-Syu"))
              << QStringLiteral("--noconfirm");
         args += pacmanBandwidthArgs();
-        if (!heldRepo.isEmpty())
-            args << QStringLiteral("--ignore") << heldRepo.join(QLatin1Char(','));
+        if (!ignoredRepo.isEmpty())
+            args << QStringLiteral("--ignore") << ignoredRepo.join(QLatin1Char(','));
         setStage(QStringLiteral("Sync"), 0.15);
     } else if (src == Source::Aur) {
         program = aurProgram();
@@ -1269,13 +1229,14 @@ void UpdateController::runNextGroup()
                         || out.contains(QLatin1String("unable to satisfy dependency"),
                                         Qt::CaseInsensitive)) {
                         const QString hint = QStringLiteral(
-                            "This is a partial-upgrade conflict: a held package is "
-                            "version-locked to something being upgraded "
-                            "(e.g. gcc/glibc/pipewire/p11-kit). Unhold the related "
-                            "packages (or hold the whole locked group) and apply again.");
+                            "This is a partial-upgrade conflict: some repo updates "
+                            "were deselected or held, but version-locked packages "
+                            "(e.g. gcc/glibc/pipewire/p11-kit) must upgrade together. "
+                            "Select all repo updates (or hold the whole locked group) "
+                            "and apply again.");
                         emitLine(hint, QStringLiteral("warn"));
                         m_warnings << QStringLiteral(
-                            "Partial upgrade failed — unhold version-locked packages.");
+                            "Partial upgrade failed — apply all repo updates together.");
                     }
                     finishRun(false);
                     return;

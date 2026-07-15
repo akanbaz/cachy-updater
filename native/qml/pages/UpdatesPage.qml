@@ -39,11 +39,20 @@ ColumnLayout {
 
     Banner {
         visible: Updater.partialUpgradeWarning
-        text: "Some repo packages are held. Skipping them during an upgrade is a "
-              + "partial upgrade \u2014 version-locked packages (gcc, glibc, pipewire, p11-kit\u2026) "
-              + "must move together, so pacman may fail. Unhold them in Settings, or hold the whole locked group."
+        text: "Some repo updates are deselected or held \u2014 this is a partial upgrade. "
+              + "Version-locked packages (gcc, glibc, pipewire, p11-kit\u2026) must upgrade "
+              + "together, so pacman may fail. Prefer Apply all repo updates, or hold a whole locked group."
         severity: "warn"
         closable: false
+    }
+
+    RowLayout {
+        visible: Updater.partialUpgradeWarning
+        QQC2.Button {
+            text: "Select all updates"
+            icon.name: "package-install"
+            onClicked: Updater.setAllSelected(true)
+        }
     }
 
     Banner {
