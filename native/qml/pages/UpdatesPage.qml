@@ -166,28 +166,37 @@ ColumnLayout {
     }
     }
 
-    RowLayout {
+    Item {
         Layout.fillWidth: true
         Layout.fillHeight: true
         Layout.minimumHeight: Updater.packageCount === 0 && !Updater.busy ? 140 : 80
-        spacing: 0
 
         ListView {
             id: list
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+            anchors.fill: parent
+            // Reserve a dedicated strip for the scrollbar so it never overlays rows.
+            anchors.rightMargin: scrollBar.policy !== QQC2.ScrollBar.AlwaysOff
+                                 && (contentHeight > height) ? scrollBar.implicitWidth : 0
             clip: true
             spacing: 0
             model: Updater.updatesModel
             boundsBehavior: Flickable.StopAtBounds
-            // Scrollbar lives in the sibling column below — never overlay row actions.
-            interactive: true
 
             section.property: "source"
             section.criteria: ViewSection.FullString
             section.delegate: SectionHeader {}
 
             delegate: PackageDelegate {}
+
+            QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+                id: scrollBar
+                parent: list.parent
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                policy: list.contentHeight > list.height
+                        ? QQC2.ScrollBar.AlwaysOn : QQC2.ScrollBar.AlwaysOff
+            }
 
             Kirigami.PlaceholderMessage {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -201,23 +210,6 @@ ColumnLayout {
                     ? "Everything is current. Last checked " + Updater.lastChecked + "."
                     : Settings.offlineMode ? "Offline mode \u2014 showing cached results."
                     : "Press Refresh to check for package updates."
-            }
-        }
-
-        QQC2.ScrollBar {
-            id: scrollBar
-            Layout.fillHeight: true
-            Layout.preferredWidth: list.contentHeight > list.height ? 10 : 0
-            orientation: Qt.Vertical
-            policy: list.contentHeight > list.height
-                    ? QQC2.ScrollBar.AlwaysOn : QQC2.ScrollBar.AlwaysOff
-            visible: list.contentHeight > list.height
-            size: list.visibleArea.heightRatio
-            position: list.visibleArea.yPosition
-            active: hovered || pressed || list.moving
-            onPositionChanged: {
-                if (pressed)
-                    list.contentY = position * Math.max(list.contentHeight - list.height, 0)
             }
         }
     }
