@@ -39,20 +39,11 @@ ColumnLayout {
 
     Banner {
         visible: Updater.partialUpgradeWarning
-        text: "Some repo updates are deselected or held \u2014 this is a partial upgrade. "
-              + "Version-locked packages (gcc, glibc, pipewire, p11-kit\u2026) must upgrade "
-              + "together, so pacman may fail. Apply all repo updates for a safe upgrade."
+        text: "Some repo packages are held. Skipping them during an upgrade is a "
+              + "partial upgrade \u2014 version-locked packages (gcc, glibc, pipewire, p11-kit\u2026) "
+              + "must move together, so pacman may fail. Unhold them in Settings, or hold the whole locked group."
         severity: "warn"
         closable: false
-    }
-
-    RowLayout {
-        visible: Updater.partialUpgradeWarning
-        QQC2.Button {
-            text: "Select all updates"
-            icon.name: "package-install"
-            onClicked: Updater.setAllSelected(true)
-        }
     }
 
     Banner {
@@ -175,38 +166,59 @@ ColumnLayout {
     }
     }
 
-    ListView {
-        id: list
+    RowLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
         Layout.minimumHeight: Updater.packageCount === 0 && !Updater.busy ? 140 : 80
-        clip: true
         spacing: 0
-        model: Updater.updatesModel
-        boundsBehavior: Flickable.StopAtBounds
-        QQC2.ScrollBar.vertical: QQC2.ScrollBar {
-            policy: list.contentHeight > list.height
-                    ? QQC2.ScrollBar.AlwaysOn : QQC2.ScrollBar.AsNeeded
+
+        ListView {
+            id: list
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            spacing: 0
+            model: Updater.updatesModel
+            boundsBehavior: Flickable.StopAtBounds
+            // Scrollbar lives in the sibling column below — never overlay row actions.
+            interactive: true
+
+            section.property: "source"
+            section.criteria: ViewSection.FullString
+            section.delegate: SectionHeader {}
+
+            delegate: PackageDelegate {}
+
+            Kirigami.PlaceholderMessage {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: Theme.spacingLarge * 2
+                width: parent.width - Theme.spacingLarge * 2
+                visible: Updater.packageCount === 0 && !Updater.busy
+                icon.name: Updater.statusState === "uptodate" ? "org.cachyos.updater" : "org.cachyos.updater-tray-updates"
+                text: Updater.statusState === "uptodate" ? "System is up to date" : "No updates yet"
+                explanation: Updater.statusState === "uptodate"
+                    ? "Everything is current. Last checked " + Updater.lastChecked + "."
+                    : Settings.offlineMode ? "Offline mode \u2014 showing cached results."
+                    : "Press Refresh to check for package updates."
+            }
         }
 
-        section.property: "source"
-        section.criteria: ViewSection.FullString
-        section.delegate: SectionHeader {}
-
-        delegate: PackageDelegate {}
-
-        Kirigami.PlaceholderMessage {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: Theme.spacingLarge * 2
-            width: parent.width - Theme.spacingLarge * 2
-            visible: Updater.packageCount === 0 && !Updater.busy
-            icon.name: Updater.statusState === "uptodate" ? "org.cachyos.updater" : "org.cachyos.updater-tray-updates"
-            text: Updater.statusState === "uptodate" ? "System is up to date" : "No updates yet"
-            explanation: Updater.statusState === "uptodate"
-                ? "Everything is current. Last checked " + Updater.lastChecked + "."
-                : Settings.offlineMode ? "Offline mode \u2014 showing cached results."
-                : "Press Refresh to check for package updates."
+        QQC2.ScrollBar {
+            id: scrollBar
+            Layout.fillHeight: true
+            Layout.preferredWidth: list.contentHeight > list.height ? 10 : 0
+            orientation: Qt.Vertical
+            policy: list.contentHeight > list.height
+                    ? QQC2.ScrollBar.AlwaysOn : QQC2.ScrollBar.AlwaysOff
+            visible: list.contentHeight > list.height
+            size: list.visibleArea.heightRatio
+            position: list.visibleArea.yPosition
+            active: hovered || pressed || list.moving
+            onPositionChanged: {
+                if (pressed)
+                    list.contentY = position * Math.max(list.contentHeight - list.height, 0)
+            }
         }
     }
 }

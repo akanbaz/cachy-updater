@@ -124,14 +124,16 @@ Item {
 
             QQC2.ToolButton {
                 flat: true
-                icon.name: model.held ? "object-unlocked" : "object-locked"
+                icon.name: model.held ? "object-unlocked" : "media-playback-pause"
                 onClicked: {
                     if (model.held)
                         Updater.unholdPackage(model.name)
                     else
                         Updater.holdPackage(model.name)
                 }
-                QQC2.ToolTip.text: model.held ? "Unhold package" : "Hold package"
+                QQC2.ToolTip.text: model.held
+                    ? "Unhold package (and its locked group)"
+                    : "Hold package (skip on upgrade, with its locked group)"
                 QQC2.ToolTip.visible: hovered
             }
 
