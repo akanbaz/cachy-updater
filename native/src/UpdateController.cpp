@@ -621,22 +621,39 @@ void UpdateController::check()
             [this](int code, const QString &out) {
                 if (abortIfCancelled())
                     return;
+                // checkupdates: 0 = updates listed, 2 = none available, other = error.
                 if (code == 0) {
                     parsePacmanStyle(out, Source::Repo);
+                } else if (code == 2) {
+                    // No repo updates — not a failure.
                 } else {
+                    const QString detail = out.trimmed();
+                    if (!detail.isEmpty()) {
+                        for (const QStringView &line :
+                             QStringView(detail).split(QLatin1Char('\n')))
+                            emitLine(line.toString(), QStringLiteral("error"));
+                    }
                     if (code < 0 || code > 2
-                        || out.contains(QLatin1String("failed to synchronize"),
-                                        Qt::CaseInsensitive)
-                        || out.contains(QLatin1String("could not resolve host"),
-                                        Qt::CaseInsensitive)
-                        || out.contains(QLatin1String("failed retrieving file"),
-                                        Qt::CaseInsensitive)) {
+                        || detail.contains(QLatin1String("failed to synchronize"),
+                                           Qt::CaseInsensitive)
+                        || detail.contains(QLatin1String("could not resolve host"),
+                                           Qt::CaseInsensitive)
+                        || detail.contains(QLatin1String("failed retrieving file"),
+                                           Qt::CaseInsensitive)
+                        || detail.contains(QLatin1String("Cannot fetch updates"),
+                                           Qt::CaseInsensitive)) {
                         m_warnings << QStringLiteral(
                             "Could not reach package mirrors — try again later, "
                             "or refresh mirrors (e.g. cachyos-rate-mirrors / reflector).");
                     } else {
                         m_warnings << QStringLiteral(
-                            "Repository check failed — see terminal output for details.");
+                            "Repository check failed (exit %1)%2")
+                                         .arg(code)
+                                         .arg(detail.isEmpty()
+                                                  ? QStringLiteral(
+                                                        " — no details from checkupdates.")
+                                                  : QStringLiteral(
+                                                        " — see terminal output."));
                     }
                 }
                 checkAur();
