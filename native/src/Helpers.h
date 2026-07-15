@@ -78,6 +78,9 @@ inline void forceCLocale(QProcessEnvironment &env)
 }
 
 // Build non-interactive AUR helper args (check uses -Qua separately).
+// GUI sessions have no TTY, so plain `sudo` fails with "a terminal is
+// required". Drive privilege escalation through pkexec (Polkit dialog)
+// the same way repo updates do.
 inline QStringList aurApplyArgs(const QString &helper, bool fullUpgrade,
                                 const QStringList &names = {})
 {
@@ -90,12 +93,18 @@ inline QStringList aurApplyArgs(const QString &helper, bool fullUpgrade,
 
     const QString name = aurHelperName(helper);
     if (name == QLatin1String("paru")) {
-        args << QStringLiteral("--skipreview");
+        args << QStringLiteral("--skipreview")
+             << QStringLiteral("--sudo") << QStringLiteral("pkexec")
+             << QStringLiteral("--nosudoloop");
     } else if (name == QLatin1String("yay")) {
         args << QStringLiteral("--answerdiff") << QStringLiteral("None")
              << QStringLiteral("--answerclean") << QStringLiteral("None")
              << QStringLiteral("--answeredit") << QStringLiteral("None")
-             << QStringLiteral("--answerupgrade") << QStringLiteral("None");
+             << QStringLiteral("--answerupgrade") << QStringLiteral("None")
+             << QStringLiteral("--sudo") << QStringLiteral("pkexec");
+    } else {
+        // Unknown helper: still prefer pkexec when the flag exists upstream.
+        args << QStringLiteral("--sudo") << QStringLiteral("pkexec");
     }
     return args;
 }

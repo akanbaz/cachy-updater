@@ -1237,6 +1237,17 @@ void UpdateController::runNextGroup()
                         emitLine(hint, QStringLiteral("warn"));
                         m_warnings << QStringLiteral(
                             "Partial upgrade failed — apply all repo updates together.");
+                    } else if (out.contains(QLatin1String("a terminal is required to read the password"),
+                                            Qt::CaseInsensitive)
+                               || out.contains(QLatin1String("a password is required"),
+                                               Qt::CaseInsensitive)) {
+                        const QString hint = QStringLiteral(
+                            "Privilege escalation needs a graphical prompt. "
+                            "Retry the AUR update — paru/yay should use pkexec "
+                            "(Polkit) instead of sudo in a terminal.");
+                        emitLine(hint, QStringLiteral("warn"));
+                        m_warnings << QStringLiteral(
+                            "AUR install needs Polkit authentication (pkexec).");
                     }
                     finishRun(false);
                     return;
